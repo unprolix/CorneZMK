@@ -1,0 +1,17 @@
+file_format: "1"
+id: ergokeeb_corne
+name: Ergokeeb Corne
+url: https://github.com/patwyh/CorneZMK
+type: board
+arch: arm
+features:
+  - keys
+  - display
+  - underglow
+  - encoder
+outputs:
+  - usb
+  - ble
+siblings:
+  - ergokeeb_corne_left
+  - ergokeeb_corne_right
