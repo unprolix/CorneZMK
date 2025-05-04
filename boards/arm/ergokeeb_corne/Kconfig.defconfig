@@ -6,7 +6,7 @@
 if BOARD_ERGOKEEB_CORNE_LEFT
 
 config ZMK_KEYBOARD_NAME
-    default "Test Corne"
+    default "Corne"
 
 config ZMK_SPLIT_ROLE_CENTRAL
     default y
