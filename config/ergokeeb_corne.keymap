@@ -31,6 +31,8 @@ TODO:
 #define FN 3
 #define EXTRA 4
 #define SYSTEM 5
+#define MODIFIER_LEFT_NAV 6
+#define MODIFIER_RIGHT_NAV 7
 
 #define HRM_TIMEOUT 400
 #define TAP_TIMEOUT 50
@@ -162,14 +164,14 @@ TODO:
     keymap {
         compatible = "zmk,keymap";
 
-        default_layer {
+        base_layer {
             display-name = "BASE";
             bindings = <
 &kp TAB              &kp Q        &kp W         &lt NUMERIC E     &kp R       &kp T                             &kp UP                &kp Y        &kp U       &lt NUMERIC I         &kp O         &kp P           &kp BSPC
-&lt NAVIGATION CAPS  &hm LCTRL A  &hm LSHIFT S  &hm LALT D        &hm LGUI F  &kp G                   &kp LEFT  &tog SYSTEM &kp RIGHT &kp H        &hm RGUI J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAVIGATION SQT
+&lt NAVIGATION CAPS  &hm LCTRL A  &hm LSHIFT S  &hm LALT D        &lt MODIFIER_LEFT_NAV F  &kp G                   &kp LEFT  &tog SYSTEM &kp RIGHT &kp H        &lt MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt      NAVIGATION SQT
 &kp LCTRL            &kp Z        &kp X         &lt NAVIGATION C  &kp V       &kp B       &kp C_MUTE            &kp DOWN              &kp N        &kp M       &lt NAVIGATION COMMA  &kp DOT       &kp FSLH        &kp ESC
                                      &lt EXTRA ESC     &kp TAB     &kp SPACE                                               &kp SPACE    &kp BSPC    &lt FN RET
-            >;
+             >;
             sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>;
         };
 
@@ -187,15 +189,15 @@ TODO:
         navigation_layer {
             display-name = "navigation";
             bindings = <
-&kp HOME  &kp PG_UP   &kp INSERT     &kp UP_ARROW   &kp DELETE      &msc SCRL_UP                           &mmv MOVE_UP                   &msc SCRL_UP    &kp DELETE     &kp UP_ARROW   &kp INSERT      &kp PG_UP   &kp HOME
-&kp END   &kp PG_DN   &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &msc SCRL_DOWN          &mmv MOVE_LEFT &kp HOME      &mmv MOVE_RIGHT  &msc SCRL_DOWN  &kp LEFT_ARROW &kp DOWN_ARROW &kp RIGHT_ARROW &kp PG_DN   &kp END
-&trans   &trans      &trans         &trans         &trans          &trans         &kp HOME                &mmv MOVE_DOWN                 &trans            &trans         &trans         &trans          &trans      &trans
-                                    &trans         &trans          &kp LEFT_ARROW                                                        &kp RIGHT_ARROW   &trans         &trans
+&kp HOME  &kp PG_UP        &kp INSERT             &kp UP_ARROW         &kp DELETE            &msc SCRL_UP                             &mmv MOVE_UP                   &msc SCRL_UP    &kp INSERT            &kp UP_ARROW         &kp DELETE              &kp PG_UP         &kp HOME
+&kp END   &hm LCTRL PG_DN  &hm LSHIFT LEFT_ARROW  &hm LALT DOWN_ARROW  &hm LGUI RIGHT_ARROW  &msc SCRL_DOWN            &mmv MOVE_LEFT &kp HOME      &mmv MOVE_RIGHT  &msc SCRL_DOWN  &hm RGUI LEFT_ARROW   &hm RALT DOWN_ARROW  &hm RSHIFT RIGHT_ARROW  &hm RCTRL PG_DN   &kp END
+&trans    &trans           &trans                 &trans               &trans                &trans          &kp HOME                 &mmv MOVE_DOWN                 &trans            &trans         &trans         &trans          &trans      &trans
+                                                  &trans               &trans                &kp LEFT_ARROW                                                          &kp RIGHT_ARROW   &trans         &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
 
-        layer_function {
+        function_layer {
             display-name = "function";
             bindings = <
 &kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10      &kp F11        &kp F12
@@ -206,10 +208,10 @@ TODO:
             sensor-bindings = <&scroll_encoder>;
         };
 
-        layer_extra {
+        extra_layer {
             display-name = "extra";
             bindings = <
-&kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10          &kp F11   &kp F12
+ &kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10          &kp F11   &kp F12
 &kp F13     &kp F14     &kp F15      &kp F16    &kp F17    &kp F18              &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp F19    &kp F20      &kp F21     &kp F22     &kp F23        &kp F24
 &trans  &sys_reset  &trans      &bootloader  &trans     &mkp MB5  &kp C_MUTE                    &mmv MOVE_DOWN                   &trans       &trans     &bootloader  &sys_reset  &kp SCROLLLOCK   &kp PAUSE_BREAK
                                 &trans      &trans      &trans                                                                   &trans       &trans     &trans
@@ -217,17 +219,57 @@ TODO:
             sensor-bindings = <&scroll_encoder>;
         };
 
-        layer_system {
+        system_layer {
             display-name = "system";
             bindings = <
-&bt BT_CLR       &bt BT_CLR_ALL  &kp F3        &kp F4        &kp F5        &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10          &kp F11   &kp F12
-&bt BT_SEL 0     &bt BT_SEL 1    &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4  &bt BT_SEL 5         &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp LEFT   &kp DOWN         &kp UP           &kp RIGHT        &kp HOME  &kp PG_UP
-&trans    &rgb_ug RGB_OFF  &rgb_ug RGB_ON  &trans        &trans        &rgb_ug RGB_EFF &kp C_MUTE                   &mmv MOVE_DOWN                   &rgb_ug RGB_EFR  &rgb_ug RGB_SPI  &rgb_ug RGB_BRI  &rgb_ug RGB_BRD  &kp END   &kp PG_DN
-
-                                 &trans      &trans      &trans                                                                   &trans       &trans     &trans
+&bt BT_CLR       &bt BT_CLR_ALL  &kp F3        &kp F4        &kp F5        &kp F6                                      &mmv MOVE_UP                     &kp F7           &kp F8           &kp F9           &kp F10          &kp F11   &kp F12
+&bt BT_SEL 0     &bt BT_SEL 1    &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4  &bt BT_SEL 5                &mmv MOVE_LEFT  &tog SYSTEM     &mmv MOVE_RIGHT  &kp LEFT         &kp DOWN         &kp UP           &kp RIGHT        &kp HOME  &kp PG_UP
+&trans           &rgb_ug RGB_OFF &rgb_ug RGB_ON  &trans        &trans            &rgb_ug RGB_EFF  &kp C_MUTE                 &mmv MOVE_DOWN                   &rgb_ug RGB_EFR  &rgb_ug RGB_SPI  &rgb_ug RGB_BRI  &rgb_ug RGB_BRD  &kp END   &kp PG_DN
+                                           &trans        &trans            &trans                                                                       &trans           &trans           &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
+
+
+        mod_l_nav_layer {
+            display-name = "L mod nav";
+            bindings = <
+&trans  &trans       &trans        &trans      &trans      &trans                             &mmv MOVE_UP                     &msc SCRL_UP    &kp INSERT      &kp UP_ARROW    &kp DELETE       &kp PG_UP  &kp HOME
+&trans  &hm LCTRL A  &hm LSHIFT S  &hm LALT D  &hm LGUI F  &trans              &mmv MOVE_LEFT &kp HOME        &mmv MOVE_RIGHT  &msc SCRL_DOWN  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &kp PG_DN  &kp END
+&trans  &trans       &trans        &trans      &trans      &trans    &kp HOME                 &mmv MOVE_DOWN                   &trans          &trans          &trans          &trans           &trans     &trans
+                                   &trans      &trans      &mo BASE                                                            &mo BASE        &trans          &trans
+            >;
+            sensor-bindings = <&scroll_encoder>;
+        };
+
+
+        mod_r_nav_layer {
+            display-name = "R mod nav";
+            bindings = <
+&kp HOME  &kp PG_UP  &kp INSERT      &kp UP_ARROW    &kp DELETE       &msc SCRL_UP                              &mmv MOVE_UP                     &trans          &trans                &trans               &trans                  &trans           &trans 
+&kp END   &kp PG_DN  &kp LEFT_ARROW  &kp DOWN_ARROW  &kp RIGHT_ARROW  &msc SCRL_DOWN             &mmv MOVE_LEFT &kp HOME        &mmv MOVE_RIGHT  &msc SCRL_DOWN  &hm RGUI LEFT_ARROW   &hm RALT DOWN_ARROW  &hm RSHIFT RIGHT_ARROW  &hm RCTRL PG_DN  &kp END
+&trans    &trans     &trans          &trans          &trans           &trans           &kp HOME                 &mmv MOVE_DOWN                   &trans          &trans                &trans               &trans                  &trans           &trans
+                                     &trans          &trans           &mo BASE                                                                   &mo BASE        &trans                &trans
+            >;
+            sensor-bindings = <&scroll_encoder>;
+        };
+
+
+/*
+        empty_layer {
+            display-name = "empty";
+            bindings = <
+&trans &trans &trans &trans &trans &trans                  &trans          &trans &trans &trans &trans &trans &trans 
+&trans &trans &trans &trans &trans &trans           &trans &trans &trans   &trans &trans &trans &trans &trans &trans 
+&trans &trans &trans &trans &trans &trans   &trans         &trans          &trans &trans &trans &trans &trans &trans 
+                     &trans &trans &trans                                  &trans &trans &trans 
+            >;
+            sensor-bindings = <&scroll_encoder>;
+        };
+*/
+
+
+
 
      }; /* keymap */
 };
