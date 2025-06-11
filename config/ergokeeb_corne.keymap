@@ -178,10 +178,11 @@ TODO:
         numeric_layer {
             display-name = "numeric";
             bindings = <
-&kp GRAVE      &kp EXCL         &kp AT               &kp HASH      &kp DOLLAR &kp PERCENT                            &mmv MOVE_UP                   &kp CARET &kp AMPS      &kp ASTERISK     &kp LPAR              &kp RPAR            &kp EQUAL
-&kp N0         &kp N1           &kp N2               &kp N3        &kp N4     &kp N5                  &mmv MOVE_LEFT &mkp LCLK      &mmv MOVE_RIGHT &kp N6    &kp N7        &kp N8           &kp N9                &kp N0              &kp MINUS
-&kp LEFT_BRACE &kp LEFT_BRACKET &kp LEFT_PARENTHESIS &kp LESS_THAN &kp SLASH  &kp MINUS    &kp C_MUTE                &mmv MOVE_DOWN                 &kp PLUS  &kp BACKSLASH &kp GREATER_THAN &kp RIGHT_PARENTHESIS &kp RIGHT_BRACKET   &kp RIGHT_BRACE
-                                                     &kp PIPE      &kp TAB    &kp SPACE                                                             &kp SPACE &kp BACKSPACE &kp PERIOD
+&kp GRAVE      &kp EXCL         &kp AT               &kp HASH      &kp DOLLAR   &kp PERCENT                            &mmv MOVE_UP                   &kp CARET &kp AMPS      &kp ASTERISK     &kp LPAR              &kp RPAR            &kp EQUAL
+&kp N0         &hm LCTRL N1     &hm LSHIFT N2        &hm LALT N3   &hm LGUI N4  &kp N5                  &mmv MOVE_LEFT &mkp LCLK      &mmv MOVE_RIGHT &kp N6    &hm RGUI N7   &hm RALT N8      &hm RSHIFT N9         &hm RCTRL N0              &kp MINUS
+//&trans &trans &trans &trans &trans &trans        &trans &trans &trans    &trans &trans &trans  &trans &hm RCTRL N0  &kp MINUS
+&kp LEFT_BRACE &kp LEFT_BRACKET &kp LEFT_PARENTHESIS &kp LESS_THAN &kp SLASH    &kp MINUS    &kp C_MUTE                &mmv MOVE_DOWN                 &kp PLUS  &kp BACKSLASH &kp GREATER_THAN &kp RIGHT_PARENTHESIS &kp RIGHT_BRACKET   &kp RIGHT_BRACE
+                                                     &kp PIPE      &kp TAB      &kp SPACE                                                             &kp SPACE &kp BACKSPACE &kp PERIOD
             >;
             sensor-bindings = <&scroll_encoder>;
         };
