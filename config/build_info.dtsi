@@ -1,9 +1,0 @@
-/ {
-   macros {
-       build_time: build_time {
-           compatible = "zmk,behavior-macro";
-           #binding-cells = <0>;
-           bindings = <&macro_tap &kp N2 &kp N0 &kp N2 &kp N5 &kp MINUS &kp N0 &kp N6 &kp MINUS &kp N1 &kp N3 &kp SPACE &kp N2 &kp N0 &kp COLON &kp N2 &kp N3 &kp COLON &kp N5 &kp N6>;
-       };
-   };
-};

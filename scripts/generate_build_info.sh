@@ -60,8 +60,13 @@ for (( i=0; i<${#TIMESTAMP}; i++ )); do
    KEYCODES="$KEYCODES &kp $keycode"
 done
 
-# Generate build_info.dtsi
-cat > config/build_info.dtsi << EOF
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Generate build_info.dtsi in the correct location
+OUTPUT_FILE="${SCRIPT_DIR}/../config/build_info.dtsi"
+
+cat > "${OUTPUT_FILE}" << EOF
 / {
    macros {
        build_time: build_time {
