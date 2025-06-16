@@ -145,18 +145,25 @@ key numbers
     combos {
         compatible = "zmk,combos";
         
+	// bootloader with far left column
+	combo_bootloader_left {
+            timeout-ms = <CHORD_TIMEOUT>;
+            key-positions = <0 13 28>;
+            bindings = <&bootloader>;
+	};
+	// bootloader with far right column
+	combo_bootloader_right {
+            timeout-ms = <CHORD_TIMEOUT>;
+            key-positions = <12 27 41>;
+            bindings = <&bootloader>;
+	};
+
+
         // ESC with tab+q
         combo_esc {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <0 1>;
             bindings = <&kp ESC>;
-        };
-
-        // Reload with r+l
-        combo_reload {
-            timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <4 25>;
-            bindings = <&bootloader>;
         };
 
         // numeric with e+i
@@ -223,11 +230,11 @@ key numbers
         compatible = "zmk,keymap";
 
         base_layer {
-            display-name = "BASE";
+            display-name = "base";
             bindings = <
 
 &kp TAB                       &kp Q        &kp W         &lt NUMERIC E     &kp R                                &kp T			     &kp UP                  &kp Y  &kp U        &lt NUMERIC I         &kp O         &kp P           &kp BSPC
-&lt NAVIGATION K_APPLICATION  &hm LCTRL A  &hm LSHIFT S  &hm LALT D        &lt MODIFIER_LEFT_NAV F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &lt MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAVIGATION SQT
+&lt NAVIGATION K_APPLICATION  &hm LCTRL A  &hm LSHIFT S  &hm LALT D        &lth MODIFIER_LEFT_NAV F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &lt MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAVIGATION SQT
 &kp LCTRL            	      &kp Z        &kp X         &lt NAVIGATION C  &kp V                                &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                     &lt NAVIGATION COMMA  &kp DOT       &kp FSLH        &kp RET
                                      &lt EXTRA ESC     &kp TAB     &kp SPACE                                               &kp SPACE    &kp BSPC    &lt FN RET
              >;
@@ -292,7 +299,7 @@ key numbers
 
 
         mod_l_nav_layer {
-            display-name = "L mod+nav";
+            display-name = "L GUI+nav";
             bindings = <
 &kp LG(TAB)  &kp LG(Q)        &kp LG(W)         &kp LG(E)       &kp LG(R)    &kp LG(T)                             &mmv MOVE_UP                     &msc LG(SCRL_UP)    &kp LG(INSERT)      &kp LG(UP_ARROW)    &kp LG(DELETE)       &kp LG(PG_UP)  &kp LG(HOME)
 &trans       &hm LCTRL LG(A)  &hm LSHIFT LG(S)  &hm LALT LG(D)  &trans       &kp LG(G)              &mmv MOVE_LEFT &kp HOME        &mmv MOVE_RIGHT  &msc LG(SCRL_DOWN)  &kp LG(LEFT_ARROW)  &kp LG(DOWN_ARROW)  &kp LG(RIGHT_ARROW)  &kp LG(PG_DN)  &kp LG(END)
@@ -304,7 +311,7 @@ key numbers
 
 
         mod_r_nav_layer {
-            display-name = "R mod nav";
+            display-name = "R GUI+nav";
             bindings = <
 &kp RG(HOME)  &kp RG(PG_UP)  &kp RG(INSERT)      &kp RG(UP_ARROW)    &kp RG(DELETE)       &msc RG(SCRL_UP)                              &mmv MOVE_UP                 &kp RG(Y)  &kp RG(U)  &kp RG(I)  &kp RG(O)  &kp RG(P)  &kp RG(BSPC)
 &kp RG(END)   &kp RG(PG_DN)  &kp RG(LEFT_ARROW)  &kp RG(DOWN_ARROW)  &kp RG(RIGHT_ARROW)  &msc RG(SCRL_DOWN)             &mmv MOVE_LEFT &kp HOME        &mmv MOVE_RIGHT  &kp RG(H) &kp RG(J) &kp RG(K) &kp RG(L) &kp RG(SEMI) &kp RG(SQT)
