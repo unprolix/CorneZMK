@@ -15,8 +15,12 @@ else
     fi
 fi
 
-# Run the generate_build_info.sh script from the scripts directory
-"${REPO_ROOT}/scripts/generate_build_info.sh"
+# Get the commit hash for the current commit
+# For pre-commit, we need to use the HEAD commit as a base since the new commit isn't created yet
+COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# Run the generate_build_info.sh script from the scripts directory with the commit hash
+"${REPO_ROOT}/scripts/generate_build_info.sh" --commit "${COMMIT_HASH}"
 
 # Add the generated file to the commit
 git add "${REPO_ROOT}/config/build_info.dtsi"

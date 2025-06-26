@@ -45,15 +45,43 @@ char_to_keycode() {
        ' ') echo "SPACE" ;;
        '.') echo "DOT" ;;
        '/') echo "SLASH" ;;
+       '<') echo "LT" ;;
+       '>') echo "GT" ;;
        *) echo "SPACE" ;; # fallback
    esac
 }
 
+# Parse command-line arguments
+COMMIT_PREFIX=""
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --commit)
+      if [ -z "$2" ]; then
+        # If no commit hash is provided, try to get the current one
+        COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+      else
+        COMMIT_HASH="$2"
+      fi
+      COMMIT_PREFIX="Built from commit ${COMMIT_HASH}"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--commit [hash]]"
+      exit 1
+      ;;
+  esac
+done
+
 # Generate timestamp
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
-MESSAGE="ZMK built ${TIMESTAMP}"
-
+# Set message based on whether commit prefix is provided
+if [ -n "$COMMIT_PREFIX" ]; then
+  MESSAGE="${COMMIT_PREFIX} ${TIMESTAMP}"
+else
+  MESSAGE="ZMK built ${TIMESTAMP}"
+fi
 
 # Convert to keycode sequence
 KEYCODES=""
@@ -82,3 +110,6 @@ cat > "${OUTPUT_FILE}" << EOF
 EOF
 
 echo "Generated build_info.dtsi with timestamp: $TIMESTAMP"
+if [ -n "$COMMIT_PREFIX" ]; then
+  echo "Commit prefix: $COMMIT_PREFIX"
+fi
