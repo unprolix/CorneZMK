@@ -31,8 +31,13 @@ include:
   - board: ergokeeb_corne_left
     shield: settings_reset
     #snippet: zmk-usb-logging
-  # testing!
+
+  # the following work via the github build process.
+  # we need to move the ability to make it into our own build script
   - board: ergokeeb_corne_left
     shield: nice_view_adapter nice_view_gem
     artifact-name: ergokeeb_corne_left_gem
+  - board: ergokeeb_corne_right
+    shield: nice_view_adapter nice_view_gem
+    artifact-name: ergokeeb_corne_right_gem
   
