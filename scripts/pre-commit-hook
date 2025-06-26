@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Find the repository root directory
+# This works regardless of whether the script is in .git/hooks or scripts/
+if [[ "${PWD}" == *".git/hooks"* ]]; then
+    # Script is running from .git/hooks
+    REPO_ROOT="$(cd "${PWD}/../.." && pwd)"
+else
+    # Script is running from elsewhere
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+    if [ -z "${REPO_ROOT}" ]; then
+        # Fallback if git command fails
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+    fi
+fi
+
+# Run the generate_build_info.sh script from the scripts directory
+"${REPO_ROOT}/scripts/generate_build_info.sh"
+
+# Add the generated file to the commit
+git add "${REPO_ROOT}/config/build_info.dtsi"
