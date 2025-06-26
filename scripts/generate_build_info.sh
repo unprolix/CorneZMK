@@ -52,10 +52,13 @@ char_to_keycode() {
 # Generate timestamp
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
+MESSAGE="ZMK built ${TIMESTAMP}"
+
+
 # Convert to keycode sequence
 KEYCODES=""
-for (( i=0; i<${#TIMESTAMP}; i++ )); do
-   char="${TIMESTAMP:$i:1}"
+for (( i=0; i<${#MESSAGE}; i++ )); do
+   char="${MESSAGE:$i:1}"
    keycode=$(char_to_keycode "$char")
    KEYCODES="$KEYCODES &kp $keycode"
 done

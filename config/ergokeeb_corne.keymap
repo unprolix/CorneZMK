@@ -56,6 +56,14 @@ key numbers
 #define MODIFIER_LEFT_NAV 6
 #define MODIFIER_RIGHT_NAV 7
 
+// short versions for helping things line up
+#define NUM NUMERIC
+#define NAV NAVIGATION
+#define LGUI_NAV_L MODIFIER_LEFT_NAV
+#define RGUI_NAV_R MODIFIER_RIGHT_NAV
+#define MENU K_APPLICATION
+
+
 #define HRM_TIMEOUT 400
 #define TAP_TIMEOUT 50
 #define CHORD_TIMEOUT 50
@@ -76,6 +84,21 @@ key numbers
 #define ZMK_MOUSE_DEFAULT_SCRL_VAL 20    // 10
 
 #include "build_info.dtsi"
+//#include "tap-hold-layer.dtsi"
+
+&lt {
+    tapping-term-ms = <150>;
+    quick-tap-ms = <150>;
+    flavor = "tap-preferred";
+};
+
+/ {
+  macros {
+      #include "layer-mod-macros.dtsi"
+  };
+};
+
+
 
 
 / {
@@ -88,26 +111,28 @@ key numbers
             flavor = "tap-preferred";
             bindings = <&kp>, <&kp>;
         };
-    };
+        
+	#include "tap-hold-layer-behaviors.dtsi"
+	#include "modifier-tap-doubletap-behaviors.dtsi"
 
-    // Temporarily switches to a layer (`&mo`) while a modifier is held
-    // &lm NUM_LAYER LSHIFT
-    lm: lm {
-    	compatible = "zmk,behavior-macro-two-param";
-	wait-ms = <0>;
-        tap-ms = <0>;
-        #binding-cells = <2>;
-        bindings
-            = <&macro_param_1to1>
-            , <&macro_press &mo MACRO_PLACEHOLDER>
-            , <&macro_param_2to1>
-            , <&macro_press &kp MACRO_PLACEHOLDER>
-            , <&macro_pause_for_release>
-            , <&macro_param_2to1>
-            , <&macro_release &kp MACRO_PLACEHOLDER>
-            , <&macro_param_1to1>
-            , <&macro_release &mo MACRO_PLACEHOLDER>
-        ;
+	// hold LGUI, tap for space, double tap for tab
+        lgui_space_tab: lgui_space_tab {
+            compatible = "zmk,behavior-tap-dance";
+            label = "LGUI_SPACE_TAB";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;
+            bindings = <&ht_mod_kp LGUI SPACE>, <&kp TAB>;
+        };
+
+	// hold RGUI, tap for space, double tap for return
+        rgui_space_ret: rgui_space_ret {
+            compatible = "zmk,behavior-tap-dance";
+            label = "RGUI_SPACE_RET";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;
+            bindings = <&ht_mod_kp RGUI SPACE>, <&kp RET>;
+        };
+
     };
 
 /* incomplete definition but should have basics for changing underglow while momentarily in a layer.
@@ -129,6 +154,8 @@ key numbers
 
 */
 
+    /* Using tap_hold_layer_lgui directly in the keymap instead of a custom f_key behavior */
+
     rgb_encoder: rgb_encoder {
         compatible = "zmk,behavior-sensor-rotate";
         #sensor-binding-cells = <0>;
@@ -142,21 +169,22 @@ key numbers
         tap-ms = <30>;
     };
 
+
     combos {
         compatible = "zmk,combos";
         
-	// bootloader with far left column
-	combo_bootloader_left {
-            timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <0 13 28>;
-            bindings = <&bootloader>;
-	};
-	// bootloader with far right column
-	combo_bootloader_right {
-            timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <12 27 41>;
-            bindings = <&bootloader>;
-	};
+        // bootloader with far left column
+        combo_bootloader_left {
+                timeout-ms = <CHORD_TIMEOUT>;
+                key-positions = <0 13 28>;
+                bindings = <&bootloader>;
+        };
+        // bootloader with far right column
+        combo_bootloader_right {
+                timeout-ms = <CHORD_TIMEOUT>;
+                key-positions = <12 27 41>;
+                bindings = <&bootloader>;
+        };
 
 
         // ESC with tab+q
@@ -186,19 +214,19 @@ key numbers
         };
 
         // One-shot modifiers with dual key presses
-        combo_os_ctrl {
+        oneshot_ctrl {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <14 26>;
             bindings = <&sk LCTRL>;
         };
 
-        combo_os_alt {
+        oneshot_alt {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <16 24>;
             bindings = <&sk LALT>;
         };
 
-        combo_os_gui {
+        oneshot_gui {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <17 23>;
             bindings = <&sk LGUI>;
@@ -218,7 +246,7 @@ key numbers
             bindings = <&to BASE>;
         };
 
-        // Print screen (which i use for screenshot)
+        // Print screen (which i use for screenshot) — lower left two keys
         combo_print {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <28 29>;
@@ -233,10 +261,10 @@ key numbers
             display-name = "base";
             bindings = <
 
-&kp TAB                       &kp Q        &kp W         &lt NUMERIC E     &kp R                                &kp T			     &kp UP                  &kp Y  &kp U        &lt NUMERIC I         &kp O         &kp P           &kp BSPC
-&lt NAVIGATION K_APPLICATION  &hm LCTRL A  &hm LSHIFT S  &hm LALT D        &lth MODIFIER_LEFT_NAV F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &lt MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAVIGATION SQT
-&kp LCTRL            	      &kp Z        &kp X         &lt NAVIGATION C  &kp V                                &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                     &lt NAVIGATION COMMA  &kp DOT       &kp FSLH        &kp RET
-                                     &lt EXTRA ESC     &kp TAB     &kp SPACE                                               &kp SPACE    &kp BSPC    &lt FN RET
+&kp TAB       &kp Q        &kp W         &lt NUM E   &kp R                                &kp T			     &kp UP                  &kp Y  &kp U        &lt NUM I         &kp O         &kp P           &kp BSPC
+&lt NAV MENU  &hm LCTRL A  &hm LSHIFT S  &hm LALT D  &tap_hold_layer_lgui LGUI_NAV_L F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &tap_hold_layer_rgui MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAV SQT
+&kp LCTRL     &kp Z        &kp X         &lt NAV C   &kp V                                &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                     &lt NAV COMMA  &kp DOT       &kp FSLH        &kp RET
+                                                     &lt EXTRA ESC  &lt NAV TAB  &lgui_space_tab                &rgui_space_ret     &lt NAV BSPC    &lt FN RETURN
              >;
             sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>;
         };
@@ -267,10 +295,10 @@ key numbers
         function_layer {
             display-name = "function";
             bindings = <
-&kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10      &kp F11        &kp F12
-&kp F13     &kp F14     &kp F15      &kp F16    &kp F17    &kp F18              &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp F19    &kp F20      &kp F21     &kp F22      &kp F23        &kp F24
-&trans  &sys_reset  &trans      &bootloader  &trans     &mkp MB5  &kp C_MUTE                    &mmv MOVE_DOWN                   &trans       &trans     &bootloader  &sys_reset  &kp SCROLLLOCK &kp PAUSE_BREAK
-                                 &trans      &trans      &build_time                                                             &build_time       &trans     &trans
+&kp F1   &kp F2         &kp F3          &kp F4        &kp F5        &kp F6                           &mmv MOVE_UP                     &kp F7   &kp F8         &kp F9          &kp F10       &kp F11         &kp F12
+&kp F13  &hm LCTRL F14  &hm LSHIFT F15  &hm LALT F16  &hm LGUI F17  &kp F18          &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp F19  &hm RCTRL F20  &hm RSHIFT F21  &hm RALT F22  &hm RGUI F23    &kp F24
+&trans   &sys_reset     &trans          &bootloader   &trans        &mkp MB5  &kp C_MUTE             &mmv MOVE_DOWN                   &trans   &trans         &bootloader     &sys_reset    &kp SCROLLLOCK  &kp PAUSE_BREAK
+                                                    &trans  &trans  &build_time                                                       &build_time  &trans  &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
@@ -280,7 +308,7 @@ key numbers
             bindings = <
  &kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10          &kp F11   &kp F12
 &kp F13     &kp F14     &kp F15      &kp F16    &kp F17    &kp F18              &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp F19    &kp F20      &kp F21     &kp F22     &kp F23        &kp F24
-&trans  &sys_reset  &trans      &bootloader  &trans     &mkp MB5  &kp C_MUTE                    &mmv MOVE_DOWN                   &trans       &trans     &bootloader  &sys_reset  &kp SCROLLLOCK   &kp PAUSE_BREAK
+&trans  &trans  &trans      &trans  &trans     &trans                        &trans   &mmv MOVE_DOWN                   &trans       &trans     &trans  &trans  &trans   &key_repeat
                                 &trans      &trans      &trans                                                                   &trans       &trans     &trans
             >;
             sensor-bindings = <&scroll_encoder>;
