@@ -31,3 +31,8 @@ include:
   - board: ergokeeb_corne_left
     shield: settings_reset
     #snippet: zmk-usb-logging
+  # testing!
+  - board: ergokeeb_corne_left
+    shield: nice_gem
+    artifact-name: ergokeeb_corne_left_gem
+  
