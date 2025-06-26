@@ -33,6 +33,6 @@ include:
     #snippet: zmk-usb-logging
   # testing!
   - board: ergokeeb_corne_left
-    shield: nice_gem
+    shield: nice_view_adapter nice_view_gem
     artifact-name: ergokeeb_corne_left_gem
   
