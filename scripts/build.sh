@@ -15,11 +15,53 @@ ZMK_PATH="$SCRIPT_DIR/zmk-firmware"
 # config repo for our actual keyboard
 CONFIG_REPO=CorneZMK
 
-
-
 KEYBOARD_NAME="ergokeeb_corne"
 USB_DEBUGGING=y
 
+# Default shield type
+SHIELD_TYPE="nice_view"
+
+# Default sides to build (both)
+BUILD_LEFT=true
+BUILD_RIGHT=true
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --shield=*)
+      SHIELD_TYPE="${1#*=}"
+      ;;
+    --left-only)
+      BUILD_LEFT=true
+      BUILD_RIGHT=false
+      ;;
+    --right-only)
+      BUILD_LEFT=false
+      BUILD_RIGHT=true
+      ;;
+    --help)
+      echo "Usage: $0 [options]"
+      echo "Options:"
+      echo "  --shield=TYPE    Shield type to build (nice_view or nice_view_gem)"
+      echo "  --left-only      Build only left side"
+      echo "  --right-only     Build only right side"
+      echo "  --help           Show this help message"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Validate shield type
+if [[ "$SHIELD_TYPE" != "nice_view" && "$SHIELD_TYPE" != "nice_view_gem" ]]; then
+  echo "Error: Invalid shield type '$SHIELD_TYPE'. Must be 'nice_view' or 'nice_view_gem'"
+  exit 1
+fi
 
 CONFIG_PATH="${SCRIPT_DIR}/${CONFIG_REPO}/config"
 BUILD_DIR="${SCRIPT_DIR}/build"
@@ -27,9 +69,21 @@ RESULTS_DIR="${SCRIPT_DIR}/results"
 WORKSPACE_DIR="${SCRIPT_DIR}/workspace"
 
 
-BUILD_DIR_LEFT=${BUILD_DIR}/${KEYBOARD_NAME}_left
+# Set build directories and output paths based on shield type
+if [[ "$SHIELD_TYPE" == "nice_view" ]]; then
+  BUILD_DIR_LEFT=${BUILD_DIR}/${KEYBOARD_NAME}_left
+  BUILD_DIR_RIGHT=${BUILD_DIR}/${KEYBOARD_NAME}_right
+  RESULT_FIRMWARE_LEFT="${KEYBOARD_NAME}_left.uf2"
+  RESULT_FIRMWARE_RIGHT="${KEYBOARD_NAME}_right.uf2"
+else
+  # For nice_view_gem
+  BUILD_DIR_LEFT=${BUILD_DIR}/${KEYBOARD_NAME}_left_gem
+  BUILD_DIR_RIGHT=${BUILD_DIR}/${KEYBOARD_NAME}_right_gem
+  RESULT_FIRMWARE_LEFT="${KEYBOARD_NAME}_left_gem.uf2"
+  RESULT_FIRMWARE_RIGHT="${KEYBOARD_NAME}_right_gem.uf2"
+fi
+
 BUILD_OUTPUT_LEFT=${BUILD_DIR_LEFT}/zephyr/zmk.uf2
-BUILD_DIR_RIGHT=${BUILD_DIR}/${KEYBOARD_NAME}_right
 BUILD_OUTPUT_RIGHT=${BUILD_DIR_RIGHT}/zephyr/zmk.uf2
 
 
@@ -41,11 +95,28 @@ fi
 
 
 
-# Build commands for left and right sides - using custom board definition with nice_view shield
-ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${KEYBOARD_NAME}_left -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
-ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${KEYBOARD_NAME}_right -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+# Build commands for left and right sides based on shield type
+if [[ "$SHIELD_TYPE" == "nice_view" ]]; then
+  SHIELD_PARAM="nice_view"
+  BUILD_DIR_SUFFIX_LEFT="${KEYBOARD_NAME}_left"
+  BUILD_DIR_SUFFIX_RIGHT="${KEYBOARD_NAME}_right"
+  
+  # Standard build commands for nice_view
+  ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_LEFT} -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+  ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_RIGHT} -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+else
+  # For nice_view_gem
+  SHIELD_PARAM="nice_view_adapter nice_view_gem"
+  BUILD_DIR_SUFFIX_LEFT="${KEYBOARD_NAME}_left_gem"
+  BUILD_DIR_SUFFIX_RIGHT="${KEYBOARD_NAME}_right_gem"
+  
+  # For nice_view_gem, we need to completely disable the ZMK display module to avoid compilation errors
+  # The nice_view_gem has its own display handling
+  ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_LEFT} -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config -DCONFIG_ZMK_DISPLAY=n"
+  ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_RIGHT} -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config -DCONFIG_ZMK_DISPLAY=n"
+fi
 
-echo "Building ZMK firmware for ${KEYBOARD_NAME}..."
+echo "Building ZMK firmware for ${KEYBOARD_NAME} with ${SHIELD_TYPE} shield..."
 echo "Using ZMK from: ${ZMK_PATH}"
 echo "Results will be placed in: ${RESULTS_DIR}"
 
@@ -125,39 +196,43 @@ echo "Creating compile-time macro"
 ${SCRIPT_DIR}/${CONFIG_REPO}/scripts/generate_build_info.sh
 
 
-echo "Building left side firmware"
-docker run --rm \
-    -v ${ZMK_PATH}:/zmk \
-    -v ${SCRIPT_DIR}:/workspace \
-    -w /zmk/app \
-    -e ZEPHYR_BASE=/zmk/zephyr \
-    -e BOARD_ROOT=/workspace/${CONFIG_REPO} \
-    --user ${USER_ID}:${GROUP_ID} \
-    ${DOCKER_IMAGE} \
-    ${ACTUAL_BUILD_COMMAND_LEFT}
+# Build left side if requested
+if [[ "$BUILD_LEFT" == true ]]; then
+  echo "Building left side firmware with ${SHIELD_TYPE} shield"
+  docker run --rm \
+      -v ${ZMK_PATH}:/zmk \
+      -v ${SCRIPT_DIR}:/workspace \
+      -w /zmk/app \
+      -e ZEPHYR_BASE=/zmk/zephyr \
+      -e BOARD_ROOT=/workspace/${CONFIG_REPO} \
+      --user ${USER_ID}:${GROUP_ID} \
+      ${DOCKER_IMAGE} \
+      ${ACTUAL_BUILD_COMMAND_LEFT}
+fi
 
-echo "Building right side firmware"
-docker run --rm \
-    -v ${ZMK_PATH}:/zmk \
-    -v ${SCRIPT_DIR}:/workspace \
-    -w /zmk/app \
-    -e ZEPHYR_BASE=/zmk/zephyr \
-    -e BOARD_ROOT=/workspace/${CONFIG_REPO} \
-    --user ${USER_ID}:${GROUP_ID} \
-    ${DOCKER_IMAGE} \
-    ${ACTUAL_BUILD_COMMAND_RIGHT}
+# Build right side if requested
+if [[ "$BUILD_RIGHT" == true ]]; then
+  echo "Building right side firmware with ${SHIELD_TYPE} shield"
+  docker run --rm \
+      -v ${ZMK_PATH}:/zmk \
+      -v ${SCRIPT_DIR}:/workspace \
+      -w /zmk/app \
+      -e ZEPHYR_BASE=/zmk/zephyr \
+      -e BOARD_ROOT=/workspace/${CONFIG_REPO} \
+      --user ${USER_ID}:${GROUP_ID} \
+      ${DOCKER_IMAGE} \
+      ${ACTUAL_BUILD_COMMAND_RIGHT}
+fi
 
 echo "Build complete!"
-#echo "Left side firmware:  ${BUILD_OUTPUT_LEFT}
-#echo "Right side firmware: ${BUILD_OUTPUT_RIGHT}
 
-RESULT_FIRMWARE_LEFT="${KEYBOARD_NAME}_left.uf2"
-RESULT_FIRMWARE_RIGHT="${KEYBOARD_NAME}_right.uf2"
+# Copy firmware files to results directory
+if [[ "$BUILD_LEFT" == true && -f "${BUILD_OUTPUT_LEFT}" ]]; then
+  cp ${BUILD_OUTPUT_LEFT} ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}
+  echo "Left side firmware: ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}"
+fi
 
-# Copy firmware files to root for easy access
-cp ${BUILD_OUTPUT_LEFT} ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}
-cp ${BUILD_OUTPUT_RIGHT} ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}
-
-echo "Result firmware files:"
-echo "  ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}"
-echo "  ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}"
+if [[ "$BUILD_RIGHT" == true && -f "${BUILD_OUTPUT_RIGHT}" ]]; then
+  cp ${BUILD_OUTPUT_RIGHT} ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}
+  echo "Right side firmware: ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}"
+fi
