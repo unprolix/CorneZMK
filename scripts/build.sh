@@ -1,35 +1,37 @@
 #!/bin/bash
 set -e
 
-# we are trying to replicate the build of CONFIG_REPO that works
-# perfectly when invoked via the github actions associated with the
-# existing repository. NO CHANGES to the repository should be required
-# for this build to work flawlessly. we just have to understand the
-# equivalents of what the github-based workflow does. this should be
-# 100% standard.
-
-KEYBOARD_BASE="ergokeeb_corne"
-RESULT_FIRMWARE_LEFT="ergokeeb_corne_left.uf2"
-RESULT_FIRMWARE_RIGHT="ergokeeb_corne_right.uf2"
-
-USB_DEBUGGING=y
+USER_ID=$(id -u)
+GROUP_ID=$(id -g)
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# zmk itself
+DOCKER_IMAGE=zmkfirmware/zmk-build-arm:stable
+
+# zmk repo itself
 ZMK_PATH="$SCRIPT_DIR/zmk-firmware"
 
 # config repo for our actual keyboard
 CONFIG_REPO=CorneZMK
+
+
+
+KEYBOARD_NAME="ergokeeb_corne"
+USB_DEBUGGING=y
+
+
 CONFIG_PATH="${SCRIPT_DIR}/${CONFIG_REPO}/config"
 BUILD_DIR="${SCRIPT_DIR}/build"
 RESULTS_DIR="${SCRIPT_DIR}/results"
 WORKSPACE_DIR="${SCRIPT_DIR}/workspace"
-DOCKER_IMAGE=zmkfirmware/zmk-build-arm:stable
 
-USER_ID=$(id -u)
-GROUP_ID=$(id -g)
+
+BUILD_DIR_LEFT=${BUILD_DIR}/${KEYBOARD_NAME}_left
+BUILD_OUTPUT_LEFT=${BUILD_DIR_LEFT}/zephyr/zmk.uf2
+BUILD_DIR_RIGHT=${BUILD_DIR}/${KEYBOARD_NAME}_right
+BUILD_OUTPUT_RIGHT=${BUILD_DIR_RIGHT}/zephyr/zmk.uf2
+
 
 if [ "$USB_DEBUGGING" = "y" ]; then
     BUILD_COMMAND_EXTRA="--snippet zmk-usb-logging"
@@ -40,10 +42,10 @@ fi
 
 
 # Build commands for left and right sides - using custom board definition with nice_view shield
-ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${KEYBOARD_BASE}_left -b ${KEYBOARD_BASE}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
-ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${KEYBOARD_BASE}_right -b ${KEYBOARD_BASE}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${KEYBOARD_NAME}_left -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${KEYBOARD_NAME}_right -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=nice_view -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
 
-echo "Building ZMK firmware for ${KEYBOARD_BASE}..."
+echo "Building ZMK firmware for ${KEYBOARD_NAME}..."
 echo "Using ZMK from: ${ZMK_PATH}"
 echo "Results will be placed in: ${RESULTS_DIR}"
 
@@ -146,13 +148,16 @@ docker run --rm \
     ${ACTUAL_BUILD_COMMAND_RIGHT}
 
 echo "Build complete!"
-echo "Left side firmware:  ${BUILD_DIR}/${KEYBOARD_BASE}_left/zephyr/zmk.uf2"
-echo "Right side firmware: ${BUILD_DIR}/${KEYBOARD_BASE}_right/zephyr/zmk.uf2"
+#echo "Left side firmware:  ${BUILD_OUTPUT_LEFT}
+#echo "Right side firmware: ${BUILD_OUTPUT_RIGHT}
+
+RESULT_FIRMWARE_LEFT="${KEYBOARD_NAME}_left.uf2"
+RESULT_FIRMWARE_RIGHT="${KEYBOARD_NAME}_right.uf2"
 
 # Copy firmware files to root for easy access
-cp ${BUILD_DIR}/${KEYBOARD_BASE}_left/zephyr/zmk.uf2 ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}
-cp ${BUILD_DIR}/${KEYBOARD_BASE}_right/zephyr/zmk.uf2 ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}
+cp ${BUILD_OUTPUT_LEFT} ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}
+cp ${BUILD_OUTPUT_RIGHT} ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}
 
-echo "Firmware files copied to:"
+echo "Result firmware files:"
 echo "  ${RESULTS_DIR}/${RESULT_FIRMWARE_LEFT}"
 echo "  ${RESULTS_DIR}/${RESULT_FIRMWARE_RIGHT}"
