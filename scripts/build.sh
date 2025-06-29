@@ -30,14 +30,17 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --shield=*)
       SHIELD_TYPE="${1#*=}"
+      shift
       ;;
     --left-only)
       BUILD_LEFT=true
       BUILD_RIGHT=false
+      shift
       ;;
     --right-only)
       BUILD_LEFT=false
       BUILD_RIGHT=true
+      shift
       ;;
     --help)
       echo "Usage: $0 [options]"
@@ -95,26 +98,22 @@ fi
 
 
 
-# Build commands for left and right sides based on shield type
-if [[ "$SHIELD_TYPE" == "nice_view" ]]; then
-  SHIELD_PARAM="nice_view"
+# Set up shield-specific build commands
+if [ "$SHIELD_TYPE" == "nice_view" ]; then
   BUILD_DIR_SUFFIX_LEFT="${KEYBOARD_NAME}_left"
   BUILD_DIR_SUFFIX_RIGHT="${KEYBOARD_NAME}_right"
-  
-  # Standard build commands for nice_view
-  ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_LEFT} -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
-  ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_RIGHT} -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
-else
-  # For nice_view_gem
-  SHIELD_PARAM="nice_view_adapter nice_view_gem"
+elif [ "$SHIELD_TYPE" == "nice_view_gem" ]; then
   BUILD_DIR_SUFFIX_LEFT="${KEYBOARD_NAME}_left_gem"
   BUILD_DIR_SUFFIX_RIGHT="${KEYBOARD_NAME}_right_gem"
-  
-  # For nice_view_gem, we need to completely disable the ZMK display module to avoid compilation errors
-  # The nice_view_gem has its own display handling
-  ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_LEFT} -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config -DCONFIG_ZMK_DISPLAY=n"
-  ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_RIGHT} -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_PARAM} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config -DCONFIG_ZMK_DISPLAY=n"
+else
+    echo oops
+    exit 1
 fi
+
+ACTUAL_BUILD_COMMAND_LEFT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_LEFT} -b ${KEYBOARD_NAME}_left ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_TYPE} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+
+ACTUAL_BUILD_COMMAND_RIGHT="west build -d /workspace/build/${BUILD_DIR_SUFFIX_RIGHT} -b ${KEYBOARD_NAME}_right ${BUILD_COMMAND_EXTRA} -- -DSHIELD=${SHIELD_TYPE} -DZMK_CONFIG=/workspace/${CONFIG_REPO}/config"
+
 
 echo "Building ZMK firmware for ${KEYBOARD_NAME} with ${SHIELD_TYPE} shield..."
 echo "Using ZMK from: ${ZMK_PATH}"
@@ -175,6 +174,8 @@ if [ ! -f "${ZMK_PATH}/.west/config" ]; then
         ${DOCKER_IMAGE} \
         bash -c "git config --global --add safe.directory '*' && west init -l app"
 fi
+
+cp ${SCRIPT_DIR}/${CONFIG_REPO}/config/west.yml ${ZMK_PATH}/app/west.yml
 
 # Update ZMK dependencies
 echo "Updating ZMK dependencies..."
