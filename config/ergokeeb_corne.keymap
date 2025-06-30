@@ -287,7 +287,7 @@ key numbers
 &kp HOME  &kp PG_UP        &kp INSERT             &kp UP_ARROW         &kp DELETE            &msc SCRL_UP                             &mmv MOVE_UP                   &msc SCRL_UP    &kp INSERT            &kp UP_ARROW         &kp DELETE              &kp PG_UP         &kp HOME
 &kp END   &hm LCTRL PG_DN  &hm LSHIFT LEFT_ARROW  &hm LALT DOWN_ARROW  &hm LGUI RIGHT_ARROW  &msc SCRL_DOWN            &mmv MOVE_LEFT &kp HOME      &mmv MOVE_RIGHT  &msc SCRL_DOWN  &hm RGUI LEFT_ARROW   &hm RALT DOWN_ARROW  &hm RSHIFT RIGHT_ARROW  &hm RCTRL PG_DN   &kp END
 &trans    &trans           &trans                 &trans               &trans                &trans          &kp HOME                 &mmv MOVE_DOWN                 &trans            &trans         &trans         &trans          &trans      &trans
-                                                  &trans               &trans                &kp LEFT_ARROW                                                          &kp RIGHT_ARROW   &trans         &trans
+                                                  &trans               &trans                &lt BASE SPACE                                                          &lt BASE SPACE   &trans         &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
