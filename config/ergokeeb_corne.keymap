@@ -172,6 +172,7 @@ key numbers
     };
 
 
+// TODO: add helpers to make this easier to read/set up/verify
     combos {
         compatible = "zmk,combos";
         
@@ -196,24 +197,30 @@ key numbers
             bindings = <&kp ESC>;
         };
 
-        // numeric with e+i
-        combo_num {
+	// numeric with outer middle row keys: caps and comma
+        combo_numeric {
             timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <3 9>;
+            key-positions = <13 27>;
             bindings = <&to NUMERIC>;
         };
 
-	// navigation with c+, and caps+'
+	// navigation with second thumb keys
         combo_nav {
             timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <31 38>;
+            key-positions = <43 46>;
             bindings = <&to NAVIGATION>;
         };
-        combo_nav_2 {
+
+	// base layer with inner thumb keys
+        combo_base {
             timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <13 27>;
-            bindings = <&to NAVIGATION>;
+            key-positions = <44 45>;
+            bindings = <&to BASE>;
         };
+
+	// --------------------------------------------------------------------------------
+	// ONE-SHOT MODIFIERS
+
 
         // One-shot modifiers with dual key presses
         oneshot_ctrl {
@@ -241,13 +248,6 @@ key numbers
             bindings = <&caps_word>;
         };
 
-        // Base layer with space keys
-        combo_base {
-            timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <44 45>;
-            bindings = <&to BASE>;
-        };
-
         // Print screen (which i use for screenshot) — lower left two keys
         combo_print {
             timeout-ms = <CHORD_TIMEOUT>;
@@ -263,9 +263,9 @@ key numbers
             display-name = "base";
             bindings = <
 
-&kp TAB       &kp Q        &kp W         &lt NUM E   &kp R                                &kp T			     &kp UP                  &kp Y  &kp U        &lt NUM I         &kp O         &kp P           &kp BSPC
-&lt NAV MENU  &hm LCTRL A  &hm LSHIFT S  &hm LALT D  &tap_hold_layer_lgui LGUI_NAV_L F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &tap_hold_layer_rgui MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NAV SQT
-&kp LCTRL     &kp Z        &kp X         &lt NAV C   &kp V                                &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                     &lt NAV COMMA  &kp DOT       &kp FSLH        &kp RET
+&kp TAB       &kp Q        &kp W         &kp E       &kp R                                &kp T			     &kp UP                  &kp Y  &kp U        &kp I          &kp O         &kp P           &kp BSPC
+&lt NUM MENU  &hm LCTRL A  &hm LSHIFT S  &hm LALT D  &tap_hold_layer_lgui LGUI_NAV_L F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT &kp H        &tap_hold_layer_rgui MODIFIER_RIGHT_NAV J  &hm RALT K            &hm RSHIFT L  &hm RCTRL SEMI  &lt NUM SQT
+&kp LCTRL     &kp Z        &kp X         &kp C   &kp V                                &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                     &kp COMMA  &kp DOT       &kp FSLH        &kp RET
                                                      &lt EXTRA ESC  &lt NAV TAB  &lgui_space_tab                &rgui_space_ret     &lt NAV BSPC    &lt FN RETURN
              >;
             sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>;
