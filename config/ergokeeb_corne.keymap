@@ -66,6 +66,8 @@ key numbers
 
 #define HRM_TIMEOUT 400
 #define TAP_TIMEOUT 50
+#define FAST_TAP 230		// at 200, the double tap actions do not reliably trigger
+#define INTERRUPT_TAP 50        // very short window, for interrupting tap dance
 #define CHORD_TIMEOUT 50
 
 /*
@@ -109,8 +111,8 @@ key numbers
 	    #binding-cells = <2>;
  	    tapping-term-ms = <200>;
 	    quick-tap-ms = <175>;
-	    require-prior-idle-ms = <100>;  // ADD this line
-	    flavor = "balanced";            // CHANGE from "tap-preferred"
+	    require-prior-idle-ms = <100>;
+	    flavor = "balanced";
 	    bindings = <&kp>, <&kp>;
 	};
 
@@ -122,7 +124,7 @@ key numbers
             compatible = "zmk,behavior-tap-dance";
             label = "LGUI_SPACE_TAB";
             #binding-cells = <0>;
-            tapping-term-ms = <200>;
+            tapping-term-ms = <FAST_TAP>;
             bindings = <&ht_mod_kp LGUI SPACE>, <&kp TAB>;
         };
 
@@ -131,26 +133,45 @@ key numbers
             compatible = "zmk,behavior-tap-dance";
             label = "RGUI_SPACE_RET";
             #binding-cells = <0>;
-            tapping-term-ms = <200>;
+            tapping-term-ms = <FAST_TAP>;
             bindings = <&ht_mod_kp RGUI SPACE>, <&kp RET>;
         };
 
-	// hold NUM, tap for menu, double tap for single-shot NUM
-	num_menu_num: num_menu_num {
-	    compatible = "zmk,behavior-tap-dance";
-	    #binding-cells = <0>;
-	    tapping-term-ms = <200>;
-	    bindings = <&lt NUMERIC MENU>, <&sl NUMERIC>;
-	};
+        lt_simple: lt_simple {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            quick-tap-ms = <175>;
+            require-prior-idle-ms = <100>;
+            flavor = "balanced";                 // Most reliable flavor
+            bindings = <&mo>, <&kp>;
+        };
 
-	num_sqt_num: num_sqt_num {
-	    compatible = "zmk,behavior-tap-dance";
-	    #binding-cells = <0>;
-	    tapping-term-ms = <200>;
-	    bindings = <&lt NUMERIC SQT>, <&sl NUMERIC>;
-	};
+        // Optimized numeric access - reduces the waiting problem
+        num_menu_num: num_menu_num {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;             // Reduced from 250
+            bindings = <&lt_simple NUMERIC MENU>, <&sl NUMERIC>;
+        };
 
+        num_sqt_num: num_sqt_num {
+            compatible = "zmk,behavior-tap-dance";
+            #binding-cells = <0>;
+            tapping-term-ms = <200>;             // Reduced from 250
+            bindings = <&lt_simple NUMERIC SQT>, <&sl NUMERIC>;
+        };
 
+        // Alternative: Use hold-tap with global-quick-tap for even faster response
+        lt_global_quick: lt_global_quick {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <120>;
+            quick-tap-ms = <120>;
+            global-quick-tap;                    // Any key press triggers quick-tap
+            flavor = "tap-preferred";
+            bindings = <&mo>, <&kp>;
+        };
     };
 
 /* incomplete definition but should have basics for changing underglow while momentarily in a layer.
