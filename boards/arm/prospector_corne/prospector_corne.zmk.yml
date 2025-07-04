@@ -1,0 +1,17 @@
+file_format: "1"
+id: prospector_corne
+name: Prospector Corne
+url: https://github.com/unprolix/CorneZMK
+type: board
+arch: arm
+features:
+  - keys
+  - display
+  - underglow
+  - encoder
+outputs:
+  - usb
+  - ble
+siblings:
+  - prospector_corne_left
+  - prospector_corne_right
