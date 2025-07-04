@@ -6,6 +6,26 @@ VARIANT="default"
 MOUNT_POINT=~/mnt/corne
 DESTINATION_FIRMWARE_NAME=CURRENT.UF2
 READY_TIME=20
+# Get the real directory where this script is located, resolving symlinks
+get_script_dir() {
+    local source="${BASH_SOURCE[0]}"
+    local dir=""
+    
+    # Resolve $source until the file is no longer a symlink
+    while [ -L "$source" ]; do
+        dir="$(cd -P "$(dirname "$source")" && pwd)"
+        source="$(readlink "$source")"
+        # If $source was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+        [[ $source != /* ]] && source="$dir/$source"
+    done
+    
+    dir="$(cd -P "$(dirname "$source")" && pwd)"
+    echo "$dir"
+}
+
+SCRIPT_DIR="$(get_script_dir)"
+REPO_BASE_DIR="$(dirname "$SCRIPT_DIR")"
+RESULTS_DIR="$REPO_BASE_DIR/results"
 
 # Help message
 show_help() {
@@ -48,15 +68,26 @@ done
 
 # Determine firmware file based on options
 if [[ "$VARIANT" == "default" ]]; then
-    NEW_FIRMWARE="results/ergokeeb_corne_${SIDE}.uf2"
+    NEW_FIRMWARE="${RESULTS_DIR}/ergokeeb_corne_${SIDE}.uf2"
 else
-    NEW_FIRMWARE="results/ergokeeb_corne_${SIDE}_gem.uf2"
+    NEW_FIRMWARE="${RESULTS_DIR}/ergokeeb_corne_${SIDE}_gem.uf2"
 fi
 
 echo "Flashing ${SIDE} side with ${VARIANT} firmware: ${NEW_FIRMWARE}"
 
-# Get the absolute path to find_device.sh in the same directory as this script
-FIND_DEVICE_SCRIPT="$(dirname "$(readlink -f "$0")")/find_device.sh"
+# Get the path to find_device.sh using SCRIPT_DIR
+FIND_DEVICE_SCRIPT="$SCRIPT_DIR/CorneZMK/scripts/find_device.sh"
+
+# If find_device.sh is not found in the expected location, try alternative locations
+if [ ! -x "$FIND_DEVICE_SCRIPT" ]; then
+    # Try in the same directory as this script
+    FIND_DEVICE_SCRIPT="$SCRIPT_DIR/find_device.sh"
+    
+    # If still not found, try in scripts subdirectory
+    if [ ! -x "$FIND_DEVICE_SCRIPT" ]; then
+        FIND_DEVICE_SCRIPT="$SCRIPT_DIR/scripts/find_device.sh"
+    fi
+fi
 
 # Make sure the script exists and is executable
 if [ ! -x "$FIND_DEVICE_SCRIPT" ]; then

@@ -2,7 +2,7 @@
 
 TODO:
 
-* why is caps_word not working?
+* holding backspace for repeating (backspaces) doesn't work
 
 * how to specify actions for turning the encoder on a particular layer
 
@@ -97,6 +97,7 @@ key numbers
 / {
   macros {
       #include "layer-mod-macros.dtsi"
+      #include "emoji.dtsi"
   };
 };
 
@@ -143,15 +144,23 @@ key numbers
             tapping-term-ms = <200>;
             quick-tap-ms = <175>;
             require-prior-idle-ms = <100>;
-            flavor = "balanced";                 // Most reliable flavor
+            flavor = "balanced";
+            bindings = <&mo>, <&kp>;
+        };
+        LTS: LTS { // alias for lt_simple but it would be great if there were a better way to define it as such.
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            quick-tap-ms = <175>;
+            require-prior-idle-ms = <100>;
+            flavor = "balanced";
             bindings = <&mo>, <&kp>;
         };
 
-        // Optimized numeric access - reduces the waiting problem
         num_menu_num: num_menu_num {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
-            tapping-term-ms = <200>;             // Reduced from 250
+            tapping-term-ms = <200>;
             bindings = <&lt_simple NUMERIC MENU>, <&sl NUMERIC>;
         };
 
@@ -303,7 +312,7 @@ key numbers
 &kp TAB       &kp Q        &kp W         &kp E       &kp R                              &kp T			     &kp UP                  &kp Y  &kp U                              &kp I       &kp O         &kp P           &kp BSPC
 &num_menu_num  &hm LCTRL A  &hm LSHIFT S  &hm LALT D  &tap_hold_layer_lgui LGUI_NAV_L F  &kp G              &kp LEFT  &tog SYSTEM  &kp RIGHT  &kp H  &tap_hold_layer_rgui RGUI_NAV_R J  &hm RALT K  &hm RSHIFT L  &hm RCTRL SEMI  &num_sqt_num
 &kp LCTRL     &kp Z        &kp X         &kp C   &kp V                                  &kp B   &kp C_MUTE           &kp DOWN                &kp N  &kp M                              &kp COMMA   &kp DOT       &kp FSLH        &kp RET
-                                                     &lt EXTRA ESC  &lt NAV TAB  &lgui_space_tab                &rgui_space_ret     &lt NAV BSPC    &lt FN RETURN
+                                                         &LTS EXTRA ESC  &LTS NAV TAB  &lgui_space_tab                &rgui_space_ret     &LTS NAV BSPC    &LTS FN RETURN
              >;
             sensor-bindings = <&inc_dec_kp C_VOLUME_UP C_VOLUME_DOWN>;
         };
@@ -326,7 +335,7 @@ key numbers
 &kp HOME  &kp PG_UP        &kp INSERT             &kp UP_ARROW         &kp DELETE            &msc SCRL_UP                             &mmv MOVE_UP                   &msc SCRL_UP    &kp INSERT            &kp UP_ARROW         &kp DELETE              &kp PG_UP         &kp HOME
 &kp END   &hm LCTRL PG_DN  &hm LSHIFT LEFT_ARROW  &hm LALT DOWN_ARROW  &hm LGUI RIGHT_ARROW  &msc SCRL_DOWN            &mmv MOVE_LEFT &kp HOME      &mmv MOVE_RIGHT  &msc SCRL_DOWN  &hm RGUI LEFT_ARROW   &hm RALT DOWN_ARROW  &hm RSHIFT RIGHT_ARROW  &hm RCTRL PG_DN   &kp END
 &trans    &trans           &trans                 &trans               &trans                &trans          &kp HOME                 &mmv MOVE_DOWN                 &trans            &trans         &trans         &trans          &trans      &trans
-                                                  &trans               &trans                &lt BASE SPACE                                                          &lt BASE SPACE   &trans         &trans
+                                                  &trans               &trans                &LTS BASE SPACE                                                          &LTS BASE SPACE   &trans         &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
@@ -345,10 +354,10 @@ key numbers
         extra_layer {
             display-name = "extra";
             bindings = <
- &kp F1      &kp F2      &kp F3       &kp F4     &kp F5     &kp F6                               &mmv MOVE_UP                     &kp F7     &kp F8       &kp F9      &kp F10          &kp F11   &kp F12
-&kp F13     &kp F14     &kp F15      &kp F16    &kp F17    &kp F18              &mmv MOVE_LEFT  &mkp LCLK       &mmv MOVE_RIGHT  &kp F19    &kp F20      &kp F21     &kp F22     &kp F23        &kp F24
-&trans  &trans  &trans      &trans  &trans     &trans                        &trans   &mmv MOVE_DOWN                   &trans       &trans     &trans  &trans  &trans   &key_repeat
-                                &trans      &trans      &trans                                                                   &trans       &trans     &trans
+&trans &trans &trans &trans &trans &trans                 &trans          &trans &trans &trans &trans &trans &trans 
+&trans &trans &trans &trans &trans &trans          &trans &trans &trans   &trans &trans &trans &trans &trans &trans
+&trans &trans &trans &trans &trans &trans   &trans        &trans          &trans &trans &trans &trans &trans &key_repeat
+                     &trans &trans &trans    		   		  &trans &trans &trans
             >;
             sensor-bindings = <&scroll_encoder>;
         };
