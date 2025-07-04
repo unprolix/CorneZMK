@@ -45,14 +45,14 @@ check_prerequisites() {
     exit 1
   fi
 
-  if [ ! -f "${CONFIG_PATH}/ergokeeb_corne.keymap" ]; then
-    echo "Error: ergokeeb_corne.keymap not found in ${CONFIG_PATH}"
+  if [ ! -f "${CONFIG_PATH}/${KEYBOARD_NAME}.keymap" ]; then
+    echo "Error: ${KEYBOARD_NAME}.keymap not found in ${CONFIG_PATH}"
     exit 1
   fi
 
   # Check for custom board definitions
-  if [ ! -d "${ROOT_DIR}/boards/arm/ergokeeb_corne" ]; then
-    echo "Error: Custom board definition not found at ${ROOT_DIR}/boards/arm/ergokeeb_corne"
+  if [ ! -d "${ROOT_DIR}/boards/arm/${KEYBOARD_NAME}" ]; then
+    echo "Error: Custom board definition not found at ${ROOT_DIR}/boards/arm/${KEYBOARD_NAME}"
     exit 1
   fi
 }
@@ -153,6 +153,23 @@ copy_firmware() {
 # Main Script
 #############################################################
 
+# Config repository name
+CONFIG_REPO="CorneZMK"
+
+# Keyboard name
+KEYBOARD_NAME="ergokeeb_corne"
+
+# Enable USB debugging by default
+USB_DEBUGGING="y"
+
+# Default shield type
+SHIELD_TYPE="nice_view"
+
+# Default sides to build (both)
+BUILD_LEFT=true
+BUILD_RIGHT=true
+
+
 # Get user and group IDs
 USER_ID=$(id -u)
 GROUP_ID=$(id -g)
@@ -228,22 +245,6 @@ if [[ -n "$DEBUG" ]]; then
   echo "DEBUG: ROOT_DIR: ${ROOT_DIR}"
   echo "DEBUG: ZMK_PATH: ${ZMK_PATH}"
 fi
-
-# Config repository name
-CONFIG_REPO="CorneZMK"
-
-# Keyboard name
-KEYBOARD_NAME="ergokeeb_corne"
-
-# Enable USB debugging by default
-USB_DEBUGGING="y"
-
-# Default shield type
-SHIELD_TYPE="nice_view"
-
-# Default sides to build (both)
-BUILD_LEFT=true
-BUILD_RIGHT=true
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
