@@ -2,6 +2,8 @@
 
 TODO:
 
+* make layer switch combos toggle between base and the other layer?
+
 * holding backspace for repeating (backspaces) doesn't work
 
 * how to specify actions for turning the encoder on a particular layer
@@ -69,6 +71,7 @@ key numbers
 #define FAST_TAP 230		// at 200, the double tap actions do not reliably trigger
 #define INTERRUPT_TAP 50        // very short window, for interrupting tap dance
 #define CHORD_TIMEOUT 50
+#define LONG_PAUSE 1000		// e.g. before certain combos
 
 /*
 
@@ -227,12 +230,14 @@ key numbers
                 timeout-ms = <CHORD_TIMEOUT>;
                 key-positions = <0 13 28>;
                 bindings = <&bootloader>;
+		require-prior-idle-ms = <LONG_PAUSE>;
         };
         // bootloader with far right column
         combo_bootloader_right {
                 timeout-ms = <CHORD_TIMEOUT>;
                 key-positions = <12 27 41>;
                 bindings = <&bootloader>;
+		require-prior-idle-ms = <LONG_PAUSE>;
         };
 
 
@@ -241,6 +246,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <0 1>;
             bindings = <&kp ESC>;
+ 	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
 	// numeric with outer middle row keys: caps and comma
@@ -248,6 +254,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <13 27>;
             bindings = <&to NUMERIC>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
 	// navigation with second thumb keys
@@ -255,6 +262,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <43 46>;
             bindings = <&to NAVIGATION>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
 	// base layer with inner thumb keys
@@ -262,6 +270,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <44 45>;
             bindings = <&to BASE>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
 	// --------------------------------------------------------------------------------
@@ -273,18 +282,21 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <14 26>;
             bindings = <&sk LCTRL>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
         oneshot_alt {
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <16 24>;
             bindings = <&sk LALT>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
         oneshot_gui {
             timeout-ms = <CHORD_TIMEOUT>;
-            key-positions = <17 23>;
+            key-positions = <17 23>;  // todo: change this to thumb keys
             bindings = <&sk LGUI>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
         // Caps word with s+l
@@ -292,6 +304,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <15 25>;
             bindings = <&caps_word>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
 
         // Print screen (which i use for screenshot) — lower left two keys
@@ -299,6 +312,7 @@ key numbers
             timeout-ms = <CHORD_TIMEOUT>;
             key-positions = <28 29>;
             bindings = <&kp PRINTSCREEN>;
+	    require-prior-idle-ms = <LONG_PAUSE>;
         };
     };
 
