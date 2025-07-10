@@ -8,6 +8,8 @@ manifest:
       url-base: https://github.com/M165437
     - name: carrefinho
       url-base: https://github.com/carrefinho
+    - name: pandakb
+      url-base: https://github.com/PandaKBLab
   projects:
     - name: zmk
       remote: zmkfirmware
@@ -19,5 +21,9 @@ manifest:
     - name: prospector-zmk-module
       remote: carrefinho
       revision: main
+    - name: corne-j-keyboard-zmk
+      remote: pandakb
+      revision: main
+      import: config/west.yml
   self:
     path: config
