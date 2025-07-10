@@ -69,7 +69,7 @@ def load_devices_config(config_path):
         sys.exit(1)
 
 
-def check_prerequisites(config_path, keyboard_name):
+def check_prerequisites(config_path, keyboard_name, zmk_path):
     """Check if required directories and files exist"""
     # Check config repo structure
     if not os.path.isdir(config_path):
@@ -80,9 +80,24 @@ def check_prerequisites(config_path, keyboard_name):
         print(f"Error: {keyboard_name}.keymap not found in {config_path}")
         sys.exit(1)
 
-    # Check for custom board definitions
-    if not os.path.isdir(os.path.join(root_dir, "boards", "arm", keyboard_name)):
-        print(f"Error: Custom board definition not found at {os.path.join(root_dir, 'boards', 'arm', keyboard_name)}")
+    # Check for custom board definitions in multiple possible locations
+    board_found = False
+    
+    # Check in CorneZMK/boards
+    if os.path.isdir(os.path.join(root_dir, "boards", "arm", keyboard_name)):
+        board_found = True
+    
+    # Check in imported modules
+    if not board_found:
+        # Check for board in corne-j-keyboard-zmk module (for eyelash_corne)
+        if os.path.isdir(os.path.join(zmk_path, "corne-j-keyboard-zmk", "boards", "arm", keyboard_name)):
+            board_found = True
+    
+    if not board_found:
+        print(f"Error: Custom board definition not found for {keyboard_name}")
+        print(f"Checked locations:")
+        print(f"  - {os.path.join(root_dir, 'boards', 'arm', keyboard_name)}")
+        print(f"  - {os.path.join(zmk_path, 'corne-j-keyboard-zmk', 'boards', 'arm', keyboard_name)}")
         sys.exit(1)
 
 
@@ -406,7 +421,7 @@ def main():
     os.makedirs(results_dir, exist_ok=True)
     
     # Check prerequisites
-    check_prerequisites(config_path, keyboard_name)
+    check_prerequisites(config_path, keyboard_name, zmk_path)
     
     # Setup ZMK environment
     setup_zmk(zmk_path, root_dir, docker_image)
