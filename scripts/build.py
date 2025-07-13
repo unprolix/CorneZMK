@@ -21,11 +21,31 @@ import os
 import sys
 import argparse
 import subprocess
-import yaml
-import shutil
 from pathlib import Path
+import os
+import sys
+import argparse
+import subprocess
+import shutil
 import platform
+import json
+import time
+from datetime import datetime, timedelta
 
+# Setup logging with timestamps
+def log(message, level="INFO"):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] [{level}] {message}")
+    sys.stdout.flush()  # Ensure output is shown immediately
+
+# Add the lib directory to the Python path so we can import the setup module
+script_dir = Path(__file__).resolve().parent
+lib_dir = script_dir / "lib"
+sys.path.insert(0, str(lib_dir))
+
+import setup
+setup.initialize_venv(["pyyaml"])
+import yaml
 
 
 def find_root_dir(start_dir):
@@ -101,7 +121,48 @@ def check_prerequisites(config_path, keyboard_name, zmk_path):
         sys.exit(1)
 
 
+def get_local_workspace(root_dir):
+    """Return a local workspace directory for Docker builds and print its location."""
+    project_name = Path(root_dir).name
+    workspace = Path.home() / ".local" / "var" / project_name / "zmk-workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    print(f"Using workspace directory: {workspace}")
+    return workspace
+
+def sync_workspace(src, dst, exclude=None):
+    """Sync files from src to dst, optionally excluding some patterns."""
+    import shutil
+    import fnmatch
+    
+    print(f"Syncing {src} to {dst}")
+    
+    def ignore_patterns(_, names):
+        if not exclude:
+            return []
+        ignored = set()
+        for pat in exclude:
+            ignored.update(fnmatch.filter(names, pat))
+        return ignored
+        
+    if os.path.exists(dst):
+        print(f"Removing existing directory: {dst}")
+        shutil.rmtree(dst)
+        
+    print("Starting file copy...")
+    shutil.copytree(src, dst, ignore=ignore_patterns if exclude else None)
+    print("File copy completed")
+
+def resolve_docker_mount_path(path):
+    # No longer needed, but kept for compatibility
+    return os.path.abspath(path)
+
 def setup_zmk(zmk_path, root_dir, docker_image):
+    workspace = get_local_workspace(root_dir)
+    # Sync ZMK dir to workspace/zmk-firmware
+    ws_zmk = workspace / "zmk-firmware"
+    sync_workspace(zmk_path, ws_zmk)
+    zmk_path = str(ws_zmk)
+
     """Setup ZMK environment"""
     # Ensure ZMK directory exists
     if not os.path.isdir(zmk_path):
@@ -149,41 +210,162 @@ def setup_zmk(zmk_path, root_dir, docker_image):
             "bash", "-c", "git config --global --add safe.directory '*' && west init -l app"
         ]
         
-        subprocess.run(cmd, check=True)
+        # Use Popen with pipes for both stdout and stderr
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1,
+            errors='replace'  # Handle any encoding issues gracefully
+        )
+        
+        # Read from both stdout and stderr in real-time
+        def read_stream(stream, print_func):
+            for line in iter(stream.readline, ''):
+                if line:
+                    print_func(line.rstrip())
+            stream.close()
+        
+        # Start threads to read both streams
+        import threading
+        stdout_thread = threading.Thread(
+            target=read_stream,
+            args=(process.stdout, lambda x: print(f"[stdout] {x}"))
+        )
+        stderr_thread = threading.Thread(
+            target=read_stream,
+            args=(process.stderr, lambda x: print(f"[stderr] {x}", file=sys.stderr))
+        )
+        
+        stdout_thread.daemon = True
+        stderr_thread.daemon = True
+        stdout_thread.start()
+        stderr_thread.start()
+        
+        # Wait for process to complete
+        returncode = process.wait()
+        
+        # Wait for threads to finish
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        if returncode != 0:
+            print(f"Error: Command failed (exit code {returncode})")
+            sys.exit(1)
 
     # Copy west.yml file
     shutil.copy(os.path.join(root_dir, "config", "west.yml"), os.path.join(zmk_path, "app", "west.yml"))
 
     # Update ZMK dependencies
-    print("Updating ZMK dependencies...")
+    log("Updating ZMK dependencies...")
     user_id = os.getuid()
     group_id = os.getgid()
     
+    docker_zmk_path = resolve_docker_mount_path(zmk_path)
+    
+    # First, check if we can run a simple Docker command
+    log("Testing Docker with a simple command...")
+    test_cmd = ["docker", "run", "--rm", "--network", "host", "hello-world"]
+    test_result = subprocess.run(test_cmd, capture_output=True, text=True)
+    log(f"Docker test command output: {test_result.stdout}")
+    if test_result.returncode != 0:
+        log(f"Docker test command failed: {test_result.stderr}", level="ERROR")
+    
     cmd = [
         "docker", "run", "--rm",
-        "-v", f"{zmk_path}:/zmk",
+        "--network", "host",  # Use host networking
+        "-v", f"{docker_zmk_path}:/zmk",
         "-w", "/zmk",
         "-e", "GIT_CONFIG_COUNT=1",
         "-e", "GIT_CONFIG_KEY_0=safe.directory",
-        "-e", "GIT_CONFIG_VALUE_0=/zmk",
+        "-e", "GIT_CONFIG_VALUE_0=/workspace/zmk-firmware",
         "--user", f"{user_id}:{group_id}",
         docker_image,
         "bash", "-c", "git config --global --add safe.directory '*' && west update"
     ]
     
-    subprocess.run(cmd, check=True)
+    # Use Popen with pipes for both stdout and stderr
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        bufsize=1,
+        errors='replace'  # Handle any encoding issues gracefully
+    )
+    
+    # Read from both stdout and stderr in real-time
+    def read_stream(stream, print_func):
+        for line in iter(stream.readline, ''):
+            if line:
+                print_func(line.rstrip())
+        stream.close()
+    
+    # Start threads to read both streams
+    import threading
+    stdout_thread = threading.Thread(
+        target=read_stream,
+        args=(process.stdout, lambda x: print(f"[stdout] {x}"))
+    )
+    stderr_thread = threading.Thread(
+        target=read_stream,
+        args=(process.stderr, lambda x: print(f"[stderr] {x}", file=sys.stderr))
+    )
+    
+    stdout_thread.daemon = True
+    stderr_thread.daemon = True
+    stdout_thread.start()
+    stderr_thread.start()
+    
+    # Wait for process to complete
+    returncode = process.wait()
+    
+    # Wait for threads to finish
+    stdout_thread.join(timeout=1)
+    stderr_thread.join(timeout=1)
+    
+    if returncode != 0:
+        print(f"Error: Command failed (exit code {returncode})")
+        sys.exit(1)
 
 
-def build_firmware(side, build_command, docker_image, zmk_path, root_dir):
+def build_firmware(side, build_command, docker_image, zmk_path, root_dir, timing_callback=None, build_opts=None):
+    log(f"Starting build for {side} side")
+    log(f"Source ZMK path: {zmk_path}")
+    log(f"Source root dir: {root_dir}")
+    
+    workspace = get_local_workspace(root_dir)
+    ws_zmk = workspace / "zmk-firmware"
+    ws_root = workspace / "project-root"
+    
+    log(f"Syncing ZMK to workspace: {ws_zmk}")
+    sync_start = time.time()
+    sync_workspace(zmk_path, ws_zmk)
+    log(f"Syncing project root to workspace: {ws_root}")
+    sync_workspace(root_dir, ws_root)
+    log(f"Sync completed in {time.time() - sync_start:.1f} seconds")
+    
+    zmk_path = str(ws_zmk)
+    root_dir = str(ws_root)
+    log(f"Using workspace ZMK path: {zmk_path}")
+    log(f"Using workspace root dir: {root_dir}")
+
     """Build firmware for a specific side"""
     print(f"Building {side} side firmware")
     user_id = os.getuid()
     group_id = os.getgid()
+
+    docker_zmk_path = resolve_docker_mount_path(zmk_path)
+    docker_root_dir = resolve_docker_mount_path(root_dir)
+    # Add network diagnostics
+    log("Running Docker network diagnostics...")
+    subprocess.run(["docker", "network", "ls"], check=False)
     
     cmd = [
         "docker", "run", "--rm",
-        "-v", f"{zmk_path}:/zmk",
-        "-v", f"{root_dir}:/workspace",
+        "--network", "host",  # Use host networking
+        "-v", f"{docker_zmk_path}:/zmk",
+        "-v", f"{docker_root_dir}:/workspace",
         "-w", "/zmk/app",
         "-e", "ZEPHYR_BASE=/zmk/zephyr",
         "-e", "BOARD_ROOT=/workspace",
@@ -191,25 +373,105 @@ def build_firmware(side, build_command, docker_image, zmk_path, root_dir):
         docker_image
     ]
     
+    log(f"Docker command: {' '.join(cmd)}")
+
+    
     # Add the build command as separate arguments
     cmd.extend(build_command.split())
     
+    start_time = datetime.now()
     try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError:
-        print(f"Error: Failed to build {side} side firmware")
+        # Use Popen with pipes for both stdout and stderr
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1,
+            errors='replace'  # Handle any encoding issues gracefully
+        )
+        
+        # Read from both stdout and stderr in real-time
+        def read_stream(stream, print_func):
+            for line in iter(stream.readline, ''):
+                if line:
+                    print_func(line.rstrip())
+            stream.close()
+        
+        # Start threads to read both streams
+        import threading
+        stdout_thread = threading.Thread(
+            target=read_stream,
+            args=(process.stdout, lambda x: print(f"[stdout] {x}"))
+        )
+        stderr_thread = threading.Thread(
+            target=read_stream,
+            args=(process.stderr, lambda x: print(f"[stderr] {x}", file=sys.stderr))
+        )
+        
+        stdout_thread.daemon = True
+        stderr_thread.daemon = True
+        stdout_thread.start()
+        stderr_thread.start()
+        
+        # Wait for process to complete
+        returncode = process.wait()
+        
+        # Wait for threads to finish
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        if timing_callback is not None and build_opts is not None:
+            timing_callback(side, build_opts, start_time, end_time, duration, returncode)
+        if returncode != 0:
+            print(f"Error: Failed to build {side} side firmware (exit code {returncode})")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Error: Exception during build: {e}")
         sys.exit(1)
 
 
-def copy_firmware(side, build_output, result_firmware, results_dir):
+
+def copy_firmware(side, build_output, result_firmware, results_dir, root_dir):
     """Copy firmware files to results directory"""
-    if os.path.isfile(build_output):
-        # Create results directory if it doesn't exist
-        os.makedirs(results_dir, exist_ok=True)
-        shutil.copy(build_output, os.path.join(results_dir, result_firmware))
-        print(f"{side} side firmware: {os.path.join(results_dir, result_firmware)}")
+    # Extract the build directory suffix from the build_output path
+    build_dir_parts = os.path.normpath(build_output).split(os.sep)
+    if len(build_dir_parts) >= 3:
+        build_dir_suffix = build_dir_parts[-3]  # e.g., eyelash_corne_left
+        
+        # Construct the workspace path where the files are actually built
+        project_name = Path(root_dir).name
+        workspace_build_output = Path.home() / ".local" / "var" / project_name / "zmk-workspace" / "project-root" / "build" / build_dir_suffix / "zephyr" / "zmk.uf2"
+        
+        # Log the path we're looking for
+        print(f"Looking for {side} side firmware at: {workspace_build_output}")
+        
+        if os.path.isfile(workspace_build_output):
+            # Create results directory if it doesn't exist
+            os.makedirs(results_dir, exist_ok=True)
+            target_path = os.path.join(results_dir, result_firmware)
+            shutil.copy(workspace_build_output, target_path)
+            print(f"{side} side firmware copied to {target_path}")
+            return True
+        else:
+            # Try an alternative path format as fallback
+            alt_build_dir_suffix = f"{build_dir_parts[-3]}_{build_dir_parts[-2]}"
+            alt_workspace_build_output = Path.home() / ".local" / "var" / project_name / "zmk-workspace" / "project-root" / "build" / alt_build_dir_suffix / "zephyr" / "zmk.uf2"
+            print(f"Trying alternative path: {alt_workspace_build_output}")
+            
+            if os.path.isfile(alt_workspace_build_output):
+                os.makedirs(results_dir, exist_ok=True)
+                target_path = os.path.join(results_dir, result_firmware)
+                shutil.copy(alt_workspace_build_output, target_path)
+                print(f"{side} side firmware copied to {target_path}")
+                return True
+            else:
+                print(f"Error: {side} side firmware not found at either path")
+                return False
     else:
-        print(f"Warning: {side} side firmware not found at {build_output}")
+        print(f"Error: Could not determine build directory suffix from {build_output}")
+        return False
 
 
 def generate_build_info(script_dir):
@@ -276,8 +538,43 @@ def update_devices_conf(devices_conf_path, device_name, keyboard_name):
     return config['devices'][device_name]
 
 
+def save_build_stat(side, build_opts, start_time, end_time, duration, returncode):
+    # Determine project dir name
+    project_dir = Path(__file__).resolve().parent.parent.name
+    stats_dir = Path.home() / ".local" / "var" / project_dir
+    stats_dir.mkdir(parents=True, exist_ok=True)
+    stats_file = stats_dir / "build-stats.json"
+    now = datetime.now()
+    # Load existing stats
+    if stats_file.exists():
+        try:
+            with open(stats_file, "r") as f:
+                stats = json.load(f)
+        except Exception:
+            stats = []
+    else:
+        stats = []
+    # Remove stats older than 2 months
+    two_months_ago = now - timedelta(days=62)
+    stats = [s for s in stats if s.get("start_time") and datetime.fromisoformat(s["start_time"]) >= two_months_ago]
+    # Add new stat
+    entry = {
+        "side": side,
+        "build_opts": build_opts,
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "duration_sec": duration,
+        "returncode": returncode
+    }
+    stats.append(entry)
+    # Save
+    with open(stats_file, "w") as f:
+        json.dump(stats, f, indent=2)
+
 def main():
-    # Parse command line arguments
+    # Initialize the virtual environment (re-executes under venv if needed)
+    setup.initialize_venv()
+    # Now in venv, parse command line arguments
     parser = argparse.ArgumentParser(description="ZMK Firmware Build Script for Corne Keyboard")
     parser.add_argument("--shield", dest="shield_type",
                         help="Shield type to build (from device config or nice_view/nice_view_gem)")
@@ -439,20 +736,28 @@ def main():
     print(f"Build flags: LEFT={build_left}, RIGHT={build_right}")
     
     # Build firmware for selected sides
+    build_opts = {
+        "shield_type": shield_type,
+        "device_name": args.device_name,
+        "usb_debugging": usb_debugging,
+        "firmware_type": firmware_type,
+        "build_dir_suffix_left": build_dir_suffix_left,
+        "build_dir_suffix_right": build_dir_suffix_right
+    }
     if build_left:
-        build_firmware("left", build_command_left, docker_image, zmk_path, root_dir)
+        build_firmware("left", build_command_left, docker_image, zmk_path, root_dir, timing_callback=save_build_stat, build_opts=build_opts)
     
     if build_right:
-        build_firmware("right", build_command_right, docker_image, zmk_path, root_dir)
+        build_firmware("right", build_command_right, docker_image, zmk_path, root_dir, timing_callback=save_build_stat, build_opts=build_opts)
     
     print("Build complete!")
     
     # Copy firmware files to results directory
     if build_left:
-        copy_firmware("Left", build_output_left, result_firmware_left, results_dir)
+        copy_firmware("Left", build_output_left, result_firmware_left, results_dir, root_dir)
     
     if build_right:
-        copy_firmware("Right", build_output_right, result_firmware_right, results_dir)
+        copy_firmware("Right", build_output_right, result_firmware_right, results_dir, root_dir)
 
 
 if __name__ == "__main__":

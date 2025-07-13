@@ -1,3 +1,19 @@
+// tap once is a one shot from the layer.
+// tap twice switches to it.
+#define ONESHOT_OR_TO(layer) \
+    oneshot_or_to_##layer: oneshot_or_to_##layer { \
+        compatible = "zmk,behavior-tap-dance"; \
+        #binding-cells = <0>; \
+        tapping-term-ms = <200>; \
+        bindings = <&sl layer>, <&to layer>; \
+    };
+
+ONESHOT_OR_TO(NUMERIC)
+ONESHOT_OR_TO(NAVIGATION)
+ONESHOT_OR_TO(FN)
+
+
+
 // Layer + modifier hold macros (parameterized)
 layer_lctrl: layer_lctrl {
     compatible = "zmk,behavior-macro-one-param";
