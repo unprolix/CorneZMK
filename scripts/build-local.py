@@ -3,7 +3,7 @@
 """
 ZMK Firmware Local Build Script for Corne Keyboard (Python Version)
 
-This script builds ZMK firmware locally (no Docker) for the Corne keyboard with
+This script builds ZMK firmware locally (no Docker) for a variety of keyboards and dongles, with
 options to build only left side, only right side, or both.
 Device information is loaded from devices.conf.
 
@@ -22,12 +22,9 @@ import sys
 import argparse
 import subprocess
 import shutil
-import platform
 import json
-import time
 from pathlib import Path
-from datetime import datetime, timedelta
-import shutil
+from datetime import datetime
 
 # Setup logging with timestamps
 def log(message, level="INFO"):
@@ -40,15 +37,15 @@ script_dir = Path(__file__).resolve().parent
 lib_dir = script_dir / "lib"
 sys.path.insert(0, str(lib_dir))
 
-# Check for required tools before importing modules
+import setup
+setup.initialize_venv(["pyyaml", "west", "pyelftools"])
+import yaml
+
+# Check for required tools before proceeding
 def check_required_tools():
     """Check if all required tools are installed"""
     required_tools = {
-        "west": {
-            "command": ["west", "--version"],
-            "package": "pip install west",
-            "description": "Zephyr's meta-tool"
-        },
+        # West is now installed in the virtual environment
         "cmake": {
             "command": ["cmake", "--version"],
             "package": "pacman -S extra/cmake",
@@ -80,46 +77,20 @@ def check_required_tools():
 # Check for required tools
 check_required_tools()
 
-# Now import modules that might require the tools
-try:
-    import setup
-    setup.initialize_venv(["pyyaml"])
-    import yaml
-except ImportError:
-    log("Failed to import required Python modules. Try installing them with:", level="ERROR")
-    log("  pip install pyyaml", level="ERROR")
-    sys.exit(1)
 
-
-def find_root_dir(start_dir):
-    """Find CorneZMK root directory"""
-    current_dir = Path(start_dir).resolve()
+def find_root_dir(start_dir=None):
+    """Find CorneZMK root directory by looking up two levels from the script location"""
+    # Use the script directory as the starting point
+    script_dir = Path(__file__).resolve().parent
     
-    # Check if current directory is CorneZMK
-    if current_dir.name == "CorneZMK":
-        return current_dir
+    # The root directory is two levels up from the script directory (scripts/build-local.py)
+    root_dir = script_dir.parent
     
-    # Check if current directory contains CorneZMK
-    if (current_dir / "CorneZMK").exists():
-        return current_dir / "CorneZMK"
-    
-    # Check if scripts directory is in current path
-    if current_dir.name == "scripts" and current_dir.parent.exists():
-        parent_dir = current_dir.parent
-        if parent_dir.name == "CorneZMK":
-            return parent_dir
-    
-    # Check if we're in zmk/CorneZMK
-    if "/zmk/CorneZMK" in str(current_dir):
-        parts = str(current_dir).split("/zmk/CorneZMK")
-        return Path(f"{parts[0]}/zmk/CorneZMK")
-    
-    # Check if we're in src/zmk/CorneZMK
-    if "/src/zmk/CorneZMK" in str(current_dir):
-        parts = str(current_dir).split("/src/zmk/CorneZMK")
-        return Path(f"{parts[0]}/src/zmk/CorneZMK")
-    
-    return None
+    # Verify this is actually the CorneZMK directory
+    if (root_dir / "config").is_dir() and (root_dir / "etc").is_dir():
+        return root_dir
+    else:
+        return None
 
 
 def load_devices_config(config_path):
@@ -153,26 +124,40 @@ def check_prerequisites(config_path, keyboard_name, zmk_path, exit_on_error=True
 
     # Check for custom board definitions in multiple possible locations
     board_found = False
+    checked_locations = []
     
     # Check in CorneZMK/boards
-    if os.path.isdir(os.path.join(root_dir, "boards", "arm", keyboard_name)):
+    primary_location = os.path.join(root_dir, "boards", "arm", keyboard_name)
+    checked_locations.append(primary_location)
+    if os.path.isdir(primary_location):
         board_found = True
+        log(f"Found board definition at {primary_location}")
     
-    # Check in imported modules
+    # Check in all modules in zmk_path
     if not board_found:
-        # Check for board in corne-j-keyboard-zmk module (for eyelash_corne)
-        if os.path.isdir(os.path.join(zmk_path, "corne-j-keyboard-zmk", "boards", "arm", keyboard_name)):
-            board_found = True
+        # Get all directories in zmk_path that might be modules
+        try:
+            for item in os.listdir(zmk_path):
+                module_path = os.path.join(zmk_path, item)
+                if os.path.isdir(module_path):
+                    # Check if this module has a boards/arm directory
+                    board_dir = os.path.join(module_path, "boards", "arm", keyboard_name)
+                    checked_locations.append(board_dir)
+                    if os.path.isdir(board_dir):
+                        board_found = True
+                        log(f"Found board definition in module: {board_dir}")
+                        break
+        except Exception as e:
+            log(f"Error scanning modules: {e}", level="ERROR")
     
     if not board_found:
         log(f"Warning: Custom board definition not found for {keyboard_name}")
         log(f"Checked locations:")
-        log(f"  - {os.path.join(root_dir, 'boards', 'arm', keyboard_name)}")
-        log(f"  - {os.path.join(zmk_path, 'corne-j-keyboard-zmk', 'boards', 'arm', keyboard_name)}")
+        for location in checked_locations:
+            log(f"  - {location}")
         log(f"Will attempt to retrieve modules from west.yml...")
         if exit_on_error:
             return False
-        return False
     
     return True
 
@@ -187,15 +172,22 @@ def setup_zmk(zmk_path, root_dir):
     # Clone ZMK if not present
     if not os.path.isdir(os.path.join(zmk_path, "app")):
         log("ZMK not found. Cloning ZMK repository...")
-        subprocess.run(["git", "clone", "https://github.com/zmkfirmware/zmk.git", zmk_path], check=True)
+        # Clone directly into the zmk_path instead of creating a nested directory
+        subprocess.run(["git", "clone", "https://github.com/zmkfirmware/zmk.git", "."], cwd=zmk_path, check=True)
+
+    # Get path to Python executable in the virtual environment
+    if sys.platform == 'win32':
+        python_executable = os.path.join(setup.VENV_DIR, "Scripts", "python.exe")
+    else:
+        python_executable = os.path.join(setup.VENV_DIR, "bin", "python")
 
     # Initialize ZMK workspace if needed
     if not os.path.isfile(os.path.join(zmk_path, ".west", "config")):
         log("Initializing ZMK workspace...")
         
-        # Change to ZMK directory and initialize west
+        # Change to ZMK directory and initialize west using the venv Python
         os.chdir(zmk_path)
-        subprocess.run(["west", "init", "-l", "app"], check=True)
+        subprocess.run([python_executable, "-m", "west", "init", "-l", "app"], check=True)
 
     # Copy west.yml file
     shutil.copy(os.path.join(root_dir, "config", "west.yml"), os.path.join(zmk_path, "app", "west.yml"))
@@ -203,9 +195,9 @@ def setup_zmk(zmk_path, root_dir):
     # Update ZMK dependencies
     log("Updating ZMK dependencies...")
     
-    # Change to ZMK directory and update west
+    # Change to ZMK directory and update west using the venv Python
     os.chdir(zmk_path)
-    subprocess.run(["west", "update"], check=True)
+    subprocess.run([python_executable, "-m", "west", "update"], check=True)
 
 
 def build_firmware(side, build_command, zmk_path, root_dir, timing_callback=None, build_opts=None):
@@ -215,7 +207,18 @@ def build_firmware(side, build_command, zmk_path, root_dir, timing_callback=None
     # Change to ZMK directory
     os.chdir(zmk_path)
     
-    # Prepare build command
+    # Get path to Python executable in the virtual environment
+    if sys.platform == 'win32':
+        python_executable = os.path.join(setup.VENV_DIR, "Scripts", "python.exe")
+    else:
+        python_executable = os.path.join(setup.VENV_DIR, "bin", "python")
+    
+    # Prepare build command using the virtual environment's Python
+    # Instead of running 'west build' directly, run it as 'python -m west build'
+    if build_command.startswith("west "):
+        # Replace 'west ' with 'python -m west '
+        build_command = f"{python_executable} -m {build_command}"
+    
     cmd = build_command.split()
     
     # Use Popen with pipes for both stdout and stderr
@@ -343,15 +346,51 @@ def update_devices_conf(devices_conf_path, device_name, keyboard_name):
         log(f"Error updating devices.conf: {e}", level="ERROR")
 
 
-def save_build_stat(side, build_opts, start_time, end_time, duration, returncode):
-    """Save build statistics to a JSON file"""
+def get_repo_name(root_dir):
+    """Get repository name from git or directory name"""
     try:
-        # Create stats directory if it doesn't exist
-        stats_dir = os.path.join(script_dir, "..", "stats")
+        # Try to get the repository name from git
+        original_dir = os.getcwd()
+        os.chdir(root_dir)
+        try:
+            # Check if this is a git repository
+            result = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], 
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                  universal_newlines=True, check=False)
+            if result.returncode == 0:
+                # Get the repository name from the remote URL or directory name
+                result = subprocess.run(["git", "config", "--get", "remote.origin.url"], 
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                      universal_newlines=True, check=False)
+                if result.returncode == 0 and result.stdout.strip():
+                    # Extract repo name from URL (handles various formats)
+                    url = result.stdout.strip()
+                    # Remove .git suffix if present
+                    if url.endswith(".git"):
+                        url = url[:-4]
+                    # Get the last part of the URL (the repo name)
+                    repo_name = os.path.basename(url)
+                    return repo_name
+        finally:
+            os.chdir(original_dir)
+    except Exception as e:
+        log(f"Error getting git repository name: {e}", level="WARNING")
+    
+    # Fallback to directory name
+    return os.path.basename(os.path.abspath(root_dir))
+
+def save_build_stat(side, build_opts, start_time, end_time, duration, returncode):
+    """Save build statistics to a JSON file in ~/.local/var/<repo-name>/build-stats.json"""
+    try:
+        # Get repository name
+        repo_name = get_repo_name(root_dir)
+        
+        # Create stats directory in user's local directory
+        stats_dir = os.path.join(str(Path.home()), ".local", "var", repo_name)
         os.makedirs(stats_dir, exist_ok=True)
         
         # Create stats file
-        stats_file = os.path.join(stats_dir, "build_stats.json")
+        stats_file = os.path.join(stats_dir, "build-stats.json")
         
         # Load existing stats if file exists
         stats = []
@@ -377,6 +416,8 @@ def save_build_stat(side, build_opts, start_time, end_time, duration, returncode
         # Save stats
         with open(stats_file, 'w') as file:
             json.dump(stats, file, indent=2)
+            
+        log(f"Build statistics saved to {stats_file}")
     except Exception as e:
         log(f"Error saving build stats: {e}", level="ERROR")
 
@@ -413,8 +454,9 @@ def main():
     
     device = devices_conf[device_name]
     keyboard_name = device.get("keyboard_name", "corne")
+    shield_name = device.get("shield_name", "corne")  # Get shield_name from config, default to corne
     
-    log(f"Building for device: {device_name} (keyboard: {keyboard_name})")
+    log(f"Building for device: {device_name} (keyboard: {keyboard_name}, shield: {shield_name})")
     
     # Get build options from device configuration
     build_options = device.get('build_options', {})
@@ -441,9 +483,14 @@ def main():
         sys.exit(1)
     
     # Setup paths
-    zmk_path = os.path.join(root_dir, "..", "zmk-firmware")
+    zmk_path = os.path.join(str(Path.home()), "pkg", "zmk")
     config_path = os.path.join(root_dir, "config")
     results_dir = os.path.join(root_dir, "results")
+    
+    # Ensure ZMK directory exists
+    if not os.path.isdir(zmk_path):
+        log(f"Creating ZMK directory at {zmk_path}...")
+        os.makedirs(zmk_path, exist_ok=True)
     
     # Check prerequisites
     check_prerequisites(config_path, keyboard_name, zmk_path)
@@ -465,44 +512,39 @@ def main():
     if args.no_debug:
         build_opts.append("-DCONFIG_ZMK_USB_LOGGING=n")
     
-    # Build left side if requested
-    if build_left:
-        log("Building left side firmware")
-        # Use standard shield name (corne_left) instead of constructing from keyboard_name
-        left_build_command = f"west build -p -b nice_nano_v2 -d build/left app -- -DSHIELD=corne_left {' '.join(build_opts)}"
+    # Function to build a specific side
+    def build_side(side, build_opts, zmk_path, root_dir, results_dir, keyboard_name, shield_name):
+        """Build firmware for a specific side"""
+        log(f"Building {side} side firmware")
+        
+        # Use shield_name from the device config to construct the shield parameter
+        # For split keyboards, append _left or _right to the shield name
+        shield_param = f"{shield_name}_{side}" if side in ["left", "right"] else shield_name
+        
+        build_command = f"west build -p -b nice_nano_v2 -d build/{side} app -- -DSHIELD={shield_param} {' '.join(build_opts)}"
         
         start_time = datetime.now()
-        left_success, left_returncode = build_firmware("left", left_build_command, zmk_path, root_dir, build_opts=build_opts)
+        side_success, side_returncode = build_firmware(side, build_command, zmk_path, root_dir, build_opts=build_opts)
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
         
-        save_build_stat("left", build_opts, start_time, end_time, duration, left_returncode)
+        save_build_stat(side, build_opts, start_time, end_time, duration, side_returncode)
         
-        if left_success:
-            left_build_output = os.path.join(zmk_path, "build", "left", "zephyr", "zmk.uf2")
-            left_result_firmware = os.path.join(results_dir, f"{keyboard_name}_left-nice_nano_v2-zmk.uf2")
-            copy_firmware("left", left_build_output, left_result_firmware, results_dir, root_dir)
-        else:
+        if side_success:
+            build_output = os.path.join(zmk_path, "build", side, "zephyr", "zmk.uf2")
+            result_firmware = os.path.join(results_dir, f"{keyboard_name}_{side}-nice_nano_v2-zmk.uf2")
+            copy_firmware(side, build_output, result_firmware, results_dir, root_dir)
+            return True
+        return False
+    
+    # Build left side if requested
+    if build_left:
+        if not build_side("left", build_opts, zmk_path, root_dir, results_dir, keyboard_name, shield_name):
             success = False
     
     # Build right side if requested
     if build_right:
-        log("Building right side firmware")
-        # Use standard shield name (corne_right) instead of constructing from keyboard_name
-        right_build_command = f"west build -p -b nice_nano_v2 -d build/right app -- -DSHIELD=corne_right {' '.join(build_opts)}"
-        
-        start_time = datetime.now()
-        right_success, right_returncode = build_firmware("right", right_build_command, zmk_path, root_dir, build_opts=build_opts)
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        
-        save_build_stat("right", build_opts, start_time, end_time, duration, right_returncode)
-        
-        if right_success:
-            right_build_output = os.path.join(zmk_path, "build", "right", "zephyr", "zmk.uf2")
-            right_result_firmware = os.path.join(results_dir, f"{keyboard_name}_right-nice_nano_v2-zmk.uf2")
-            copy_firmware("right", right_build_output, right_result_firmware, results_dir, root_dir)
-        else:
+        if not build_side("right", build_opts, zmk_path, root_dir, results_dir, keyboard_name, shield_name):
             success = False
     
     # Print summary

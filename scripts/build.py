@@ -148,6 +148,12 @@ def sync_workspace(src, dst, exclude=None):
     
     print(f"Syncing {src} to {dst}")
     
+    # Check if source exists
+    if not os.path.exists(src):
+        print(f"Source directory {src} does not exist. Creating empty destination directory.")
+        os.makedirs(dst, exist_ok=True)
+        return
+    
     def ignore_patterns(_, names):
         if not exclude:
             return []
@@ -203,10 +209,18 @@ def resolve_docker_mount_path(path):
 
 def setup_zmk(zmk_path, root_dir, docker_image):
     workspace = get_local_workspace(root_dir)
-    # Sync ZMK dir to workspace/zmk-firmware
+    # Define workspace ZMK directory
     ws_zmk = workspace / "zmk-firmware"
-    sync_workspace(zmk_path, ws_zmk)
-    zmk_path = str(ws_zmk)
+    
+    # Check if source zmk_path exists
+    if not os.path.exists(zmk_path):
+        print(f"ZMK source directory {zmk_path} does not exist.")
+        # We'll use the workspace directory directly
+        zmk_path = str(ws_zmk)
+    else:
+        # Sync existing ZMK to workspace
+        sync_workspace(zmk_path, ws_zmk)
+        zmk_path = str(ws_zmk)
 
     """Setup ZMK environment"""
     # Ensure ZMK directory exists
@@ -214,9 +228,10 @@ def setup_zmk(zmk_path, root_dir, docker_image):
         print("Creating ZMK directory...")
         os.makedirs(zmk_path, exist_ok=True)
 
-    # Clone ZMK if not present
+    # Clone ZMK if not present (either in original path or workspace)
     if not os.path.isdir(os.path.join(zmk_path, "app")):
         print("ZMK not found. Cloning ZMK repository...")
+        # Clone directly to the workspace directory
         subprocess.run(["git", "clone", "https://github.com/zmkfirmware/zmk.git", zmk_path], check=True)
 
     # Check if ZMK directory has correct ownership
