@@ -89,16 +89,20 @@ def load_devices_config(config_path):
         sys.exit(1)
 
 
-def check_prerequisites(config_path, keyboard_name, zmk_path):
+def check_prerequisites(config_path, keyboard_name, zmk_path, exit_on_error=True):
     """Check if required directories and files exist"""
     # Check config repo structure
     if not os.path.isdir(config_path):
         print(f"Error: Config directory not found at {config_path}")
-        sys.exit(1)
+        if exit_on_error:
+            sys.exit(1)
+        return False
 
     if not os.path.isfile(os.path.join(config_path, f"{keyboard_name}.keymap")):
         print(f"Error: {keyboard_name}.keymap not found in {config_path}")
-        sys.exit(1)
+        if exit_on_error:
+            sys.exit(1)
+        return False
 
     # Check for custom board definitions in multiple possible locations
     board_found = False
@@ -114,11 +118,16 @@ def check_prerequisites(config_path, keyboard_name, zmk_path):
             board_found = True
     
     if not board_found:
-        print(f"Error: Custom board definition not found for {keyboard_name}")
+        print(f"Warning: Custom board definition not found for {keyboard_name}")
         print(f"Checked locations:")
         print(f"  - {os.path.join(root_dir, 'boards', 'arm', keyboard_name)}")
         print(f"  - {os.path.join(zmk_path, 'corne-j-keyboard-zmk', 'boards', 'arm', keyboard_name)}")
-        sys.exit(1)
+        print(f"Will attempt to retrieve modules from west.yml...")
+        if exit_on_error:
+            return False
+        return False
+    
+    return True
 
 
 def get_local_workspace(root_dir):
@@ -132,7 +141,10 @@ def get_local_workspace(root_dir):
 def sync_workspace(src, dst, exclude=None):
     """Sync files from src to dst, optionally excluding some patterns."""
     import shutil
+    import stat
     import fnmatch
+    import time
+    import sys
     
     print(f"Syncing {src} to {dst}")
     
@@ -143,14 +155,47 @@ def sync_workspace(src, dst, exclude=None):
         for pat in exclude:
             ignored.update(fnmatch.filter(names, pat))
         return ignored
-        
+    
+    def remove_readonly(func, path, _):
+        """Clear the readonly bit and reattempt the removal"""
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    
     if os.path.exists(dst):
         print(f"Removing existing directory: {dst}")
-        shutil.rmtree(dst)
-        
+        # Try multiple times in case of race conditions or slow filesystems
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if os.name == 'nt':
+                    shutil.rmtree(dst, onerror=remove_readonly)
+                else:
+                    shutil.rmtree(dst, ignore_errors=False, onerror=remove_readonly)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    print(f"Error: Failed to remove directory after {max_retries} attempts: {e}")
+                    # Try to continue anyway - the copy might still work
+                    break
+                print(f"Retrying directory removal (attempt {attempt + 1}/{max_retries})...")
+                time.sleep(1)
+    
+    # Ensure the parent directory exists
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    
     print("Starting file copy...")
-    shutil.copytree(src, dst, ignore=ignore_patterns if exclude else None)
-    print("File copy completed")
+    try:
+        shutil.copytree(src, dst, ignore=ignore_patterns if exclude else None)
+        print("File copy completed successfully")
+    except Exception as e:
+        print(f"Error during file copy: {e}", file=sys.stderr)
+        # If the copy failed, ensure we don't leave partial/corrupt state
+        if os.path.exists(dst):
+            try:
+                shutil.rmtree(dst, ignore_errors=True)
+            except:
+                pass
+        raise
 
 def resolve_docker_mount_path(path):
     # No longer needed, but kept for compatibility
@@ -441,8 +486,26 @@ def copy_firmware(side, build_output, result_firmware, results_dir, root_dir):
         build_dir_suffix = build_dir_parts[-3]  # e.g., eyelash_corne_left
         
         # Construct the workspace path where the files are actually built
-        project_name = Path(root_dir).name
-        workspace_build_output = Path.home() / ".local" / "var" / project_name / "zmk-workspace" / "project-root" / "build" / build_dir_suffix / "zephyr" / "zmk.uf2"
+        # Use the actual directory name from the path, not just the last component
+        project_name = os.path.basename(os.path.normpath(root_dir))
+        
+        # Try multiple possible workspace paths
+        workspace_paths = [
+            Path.home() / ".local" / "var" / project_name / "zmk-workspace" / "project-root" / "build" / build_dir_suffix / "zephyr" / "zmk.uf2",
+            Path.home() / ".local" / "var" / "CorneZMK" / "zmk-workspace" / "project-root" / "build" / build_dir_suffix / "zephyr" / "zmk.uf2",
+            Path.home() / ".local" / "var" / "zmk-workspace" / "project-root" / "build" / build_dir_suffix / "zephyr" / "zmk.uf2"
+        ]
+        
+        # Use the first path that exists
+        workspace_build_output = None
+        for path in workspace_paths:
+            if os.path.isfile(path):
+                workspace_build_output = path
+                break
+        
+        # If none of the paths exist, use the first one for reporting
+        if workspace_build_output is None:
+            workspace_build_output = workspace_paths[0]
         
         # Log the path we're looking for
         print(f"Looking for {side} side firmware at: {workspace_build_output}")
@@ -651,7 +714,30 @@ def main():
     usb_debugging = "n" if args.no_debug else build_options.get('usb_debugging', "y")
     
     # ZMK repository path
-    zmk_path = os.path.join(root_dir, "zmk-firmware")
+    # Determine the actual path to the script and find the ZMK firmware directory
+    script_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    zmk_path = os.path.join(script_path, "zmk-firmware")
+    
+    # Verify the ZMK firmware directory exists
+    if not os.path.exists(zmk_path):
+        print(f"Error: ZMK firmware directory not found at {zmk_path}")
+        print("Looking for ZMK firmware in alternate locations...")
+        
+        # Try alternate locations
+        alternate_paths = [
+            os.path.join(root_dir, "zmk-firmware"),
+            os.path.join(os.path.dirname(script_path), "zmk-firmware"),
+            "/home/jjb/src/floof/zmk/CorneZMK/zmk-firmware"
+        ]
+        
+        for alt_path in alternate_paths:
+            if os.path.exists(alt_path):
+                print(f"Found ZMK firmware at: {alt_path}")
+                zmk_path = alt_path
+                break
+        else:
+            print("Error: Could not find ZMK firmware directory. Please specify the path manually.")
+            sys.exit(1)
     
     # Docker image for building
     docker_image = "zmkfirmware/zmk-build-arm:stable"
@@ -717,11 +803,17 @@ def main():
     # Ensure results directory exists
     os.makedirs(results_dir, exist_ok=True)
     
-    # Check prerequisites
-    check_prerequisites(config_path, keyboard_name, zmk_path)
-    
-    # Setup ZMK environment
+    # Setup ZMK environment first to ensure all modules are available
     setup_zmk(zmk_path, root_dir, docker_image)
+    
+    # Check prerequisites after setup to ensure all modules are available
+    prereqs_ok = check_prerequisites(config_path, keyboard_name, zmk_path, exit_on_error=False)
+    if not prereqs_ok:
+        print("Retrying prerequisites check after ZMK setup...")
+        # Try one more time after setup
+        if not check_prerequisites(config_path, keyboard_name, zmk_path):
+            print("Error: Prerequisites check failed even after ZMK setup")
+            sys.exit(1)
     
     # Clean previous builds
     if os.path.exists(build_dir):
